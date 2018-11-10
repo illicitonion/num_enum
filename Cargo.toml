@@ -1,0 +1,19 @@
+[package]
+name = "num_enum"
+version = "0.1.0"
+authors = ["Daniel Wagner-Hall <dawagner@gmail.com>"]
+description = "Procedural macros to make inter-operation between primitives and enums easier."
+repository = "https://github.com/illicitonion/num_enum"
+keywords = ["enum"]
+categories = ["rust-patterns"]
+license = "BSD-3-Clause"
+
+[lib]
+proc-macro = true
+
+[workspace]
+members = ["stable_tests", "nightly_tests"]
+
+[badges]
+travis-ci = { repository = "illicitonion/num_enum", branch = "master" }
+maintenance = { status = "experimental" }

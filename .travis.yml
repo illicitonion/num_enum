@@ -1,0 +1,13 @@
+language: rust
+
+matrix:
+  include:
+    - name: stable
+      rust: stable
+      script: cargo test -p stable_tests
+    - name: beta
+      rust: beta
+      script: cargo test -p stable_tests
+    - name: nightly
+      rust: nightly
+      script: cargo test --all

@@ -5,4 +5,4 @@ authors = ["Daniel Wagner-Hall <dawagner@gmail.com>"]
 publish = false
 
 [dependencies]
-num_enum = { path = ".." }
+num_enum = { path = "..", features = ["complex-expressions"] }

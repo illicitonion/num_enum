@@ -80,3 +80,17 @@ fn convert() {
     assert_eq!(three, Err("No value in enum Number for value 3".to_owned()));
 }
 ```
+
+Optional features
+-----------------
+
+Some enum values may be composed of complex expressions, for example:
+
+```rust
+enum Number {
+    Zero: (0, 1).0,
+    One: (0, 1),1,
+}
+```
+
+To cut down on compile time, these are not supported by default, but if you enable the `complex-expressions` feature of your dependency on `num_enum`, these should start working.

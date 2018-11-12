@@ -1,9 +1,10 @@
 [package]
 name = "num_enum"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Daniel Wagner-Hall <dawagner@gmail.com>"]
 description = "Procedural macros to make inter-operation between primitives and enums easier."
 repository = "https://github.com/illicitonion/num_enum"
+readme = "README.md"
 keywords = ["enum"]
 categories = ["rust-patterns"]
 license = "BSD-3-Clause"

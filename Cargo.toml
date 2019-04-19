@@ -1,6 +1,6 @@
 [package]
 name = "num_enum"
-version = "0.1.1"
+version = "0.2.0"
 authors = ["Daniel Wagner-Hall <dawagner@gmail.com>"]
 description = "Procedural macros to make inter-operation between primitives and enums easier."
 edition = "2018"

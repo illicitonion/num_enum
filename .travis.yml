@@ -4,10 +4,10 @@ matrix:
   include:
     - name: stable
       rust: stable
-      script: cargo test -p stable_tests
+      script: cargo test --all
     - name: beta
       rust: beta
-      script: cargo test -p stable_tests
+      script: cargo test --all
     - name: nightly
       rust: nightly
       script: cargo test --all

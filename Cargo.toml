@@ -3,6 +3,7 @@ name = "num_enum"
 version = "0.1.1"
 authors = ["Daniel Wagner-Hall <dawagner@gmail.com>"]
 description = "Procedural macros to make inter-operation between primitives and enums easier."
+edition = "2018"
 repository = "https://github.com/illicitonion/num_enum"
 readme = "README.md"
 keywords = ["enum"]
@@ -16,13 +17,13 @@ proc-macro = true
 complex-expressions = ["syn/full"]
 
 [workspace]
-members = ["stable_tests", "nightly_tests"]
+members = ["tests"]
 
 [badges]
 travis-ci = { repository = "illicitonion/num_enum", branch = "master" }
 maintenance = { status = "experimental" }
 
 [dependencies]
-proc-macro2 = "0.4.21"
-quote = "0.6.10"
-syn = "0.15.18"
+proc-macro2 = "0.4.27"
+quote = "0.6.12"
+syn = "0.15.32"

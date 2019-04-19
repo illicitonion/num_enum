@@ -1,8 +1,0 @@
-[package]
-name = "nightly_tests"
-version = "0.1.0"
-authors = ["Daniel Wagner-Hall <dawagner@gmail.com>"]
-publish = false
-
-[dependencies]
-num_enum = { path = "..", features = ["complex-expressions"] }

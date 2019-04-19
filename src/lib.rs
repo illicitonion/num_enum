@@ -1,7 +1,5 @@
 extern crate proc_macro;
 extern crate proc_macro2;
-extern crate quote;
-extern crate syn;
 
 use proc_macro::TokenStream;
 use quote::quote;
@@ -26,7 +24,6 @@ pub fn derive_into_primitive(stream: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-// Requires try_from which isn't yet stable.
 #[proc_macro_derive(TryFromPrimitive)]
 pub fn derive_try_from_primitive(stream: TokenStream) -> TokenStream {
     let input = parse_macro_input!(stream as DeriveInput);
@@ -56,57 +53,6 @@ pub fn derive_try_from_primitive(stream: TokenStream) -> TokenStream {
                 match number {
                     #( #match_const_names2 => Ok(#repeated_name::#enum_keys), )*
                     _ => Err(format!(#no_match_message, number)),
-                }
-            }
-        }
-    };
-
-    TokenStream::from(expanded)
-}
-
-// Glue until try_from is stable.
-#[proc_macro_derive(CustomTryInto)]
-pub fn derive_option_from_custom_try_into(stream: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(stream as DeriveInput);
-    let enum_info = parse_enum(input);
-
-    let TryIntoEnumInfo {
-        name,
-        visibility,
-        repr,
-        match_const_names,
-        match_const_exprs,
-        enum_keys,
-        no_match_message,
-    } = TryIntoEnumInfo::from(enum_info);
-
-    let match_const_names2 = match_const_names.clone();
-    let repeated_repr = std::iter::repeat(repr.clone()).take(enum_keys.len());
-    let repeated_name = std::iter::repeat(name.clone()).take(enum_keys.len());
-
-    let trait_name =
-        proc_macro2::Ident::new(&format!("TryInto{}", name), proc_macro2::Span::call_site());
-    let trait_fn_name = proc_macro2::Ident::new(
-        &format!("try_into_{}", name),
-        proc_macro2::Span::call_site(),
-    );
-
-    let expanded = quote! {
-        #visibility trait #trait_name {
-            type Error;
-
-            fn #trait_fn_name(self) -> Result<#name, Self::Error>;
-        }
-
-        impl #trait_name for #repr {
-            type Error=String;
-
-            fn #trait_fn_name(self) -> Result<#name, Self::Error> {
-                #( const #match_const_names: #repeated_repr = #match_const_exprs; )*
-
-                match self {
-                    #( #match_const_names2 => Ok(#repeated_name::#enum_keys), )*
-                    _ => Err(format!(#no_match_message, self)),
                 }
             }
         }

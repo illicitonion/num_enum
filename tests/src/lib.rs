@@ -1,6 +1,26 @@
-#![feature(try_from)]
+mod into_primitive {
+    use num_enum::IntoPrimitive;
 
-extern crate num_enum;
+    #[derive(IntoPrimitive)]
+    #[repr(u8)]
+    enum SimpleNumber {
+        Zero,
+        One,
+        Two,
+    }
+
+    #[test]
+    fn simple() {
+        let zero: u8 = SimpleNumber::Zero.into();
+        assert_eq!(zero, 0u8);
+
+        let one: u8 = SimpleNumber::One.into();
+        assert_eq!(one, 1u8);
+
+        let two: u8 = SimpleNumber::Two.into();
+        assert_eq!(two, 2u8);
+    }
+}
 
 use num_enum::TryFromPrimitive;
 use std::convert::TryInto;

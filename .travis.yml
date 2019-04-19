@@ -1,13 +1,10 @@
 language: rust
 
-matrix:
-  include:
-    - name: stable
-      rust: stable
-      script: cargo test --all
-    - name: beta
-      rust: beta
-      script: cargo test --all
-    - name: nightly
-      rust: nightly
-      script: cargo test --all
+rust:
+  - stable
+  - beta
+  - nightly
+
+script:
+  - cargo test
+  - cargo test --features=complex-expressions

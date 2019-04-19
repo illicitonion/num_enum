@@ -137,48 +137,51 @@ fn wrong_order() {
     assert_eq!(four, Ok(WrongOrderNumber::Four));
 }
 
-const ONE: u8 = 1;
+#[cfg(feature = "complex-expression")]
+mod complex {
+    const ONE: u8 = 1;
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
-#[repr(u8)]
-enum DifferentValuesNumber {
-    Zero,
-    One = ONE,
-    Two,
-    Four = 4u8,
-    Five,
-    Six = ONE + ONE + 2u8 + 2,
-    Seven = (7, 2).0,
-}
+    #[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+    #[repr(u8)]
+    enum DifferentValuesNumber {
+        Zero,
+        One = ONE,
+        Two,
+        Four = 4u8,
+        Five,
+        Six = ONE + ONE + 2u8 + 2,
+        Seven = (7, 2).0,
+    }
 
-#[test]
-fn different_values() {
-    let zero: Result<DifferentValuesNumber, String> = 0u8.try_into();
-    assert_eq!(zero, Ok(DifferentValuesNumber::Zero));
+    #[test]
+    fn different_values() {
+        let zero: Result<DifferentValuesNumber, String> = 0u8.try_into();
+        assert_eq!(zero, Ok(DifferentValuesNumber::Zero));
 
-    let one: Result<DifferentValuesNumber, String> = 1u8.try_into();
-    assert_eq!(one, Ok(DifferentValuesNumber::One));
+        let one: Result<DifferentValuesNumber, String> = 1u8.try_into();
+        assert_eq!(one, Ok(DifferentValuesNumber::One));
 
-    let two: Result<DifferentValuesNumber, String> = 2u8.try_into();
-    assert_eq!(two, Ok(DifferentValuesNumber::Two));
+        let two: Result<DifferentValuesNumber, String> = 2u8.try_into();
+        assert_eq!(two, Ok(DifferentValuesNumber::Two));
 
-    let three: Result<DifferentValuesNumber, String> = 3u8.try_into();
-    assert_eq!(
-        three,
-        Err("No value in enum DifferentValuesNumber for value 3".to_owned())
-    );
+        let three: Result<DifferentValuesNumber, String> = 3u8.try_into();
+        assert_eq!(
+            three,
+            Err("No value in enum DifferentValuesNumber for value 3".to_owned())
+        );
 
-    let four: Result<DifferentValuesNumber, String> = 4u8.try_into();
-    assert_eq!(four, Ok(DifferentValuesNumber::Four));
+        let four: Result<DifferentValuesNumber, String> = 4u8.try_into();
+        assert_eq!(four, Ok(DifferentValuesNumber::Four));
 
-    let five: Result<DifferentValuesNumber, String> = 5u8.try_into();
-    assert_eq!(five, Ok(DifferentValuesNumber::Five));
+        let five: Result<DifferentValuesNumber, String> = 5u8.try_into();
+        assert_eq!(five, Ok(DifferentValuesNumber::Five));
 
-    let six: Result<DifferentValuesNumber, String> = 6u8.try_into();
-    assert_eq!(six, Ok(DifferentValuesNumber::Six));
+        let six: Result<DifferentValuesNumber, String> = 6u8.try_into();
+        assert_eq!(six, Ok(DifferentValuesNumber::Six));
 
-    let seven: Result<DifferentValuesNumber, String> = 7u8.try_into();
-    assert_eq!(seven, Ok(DifferentValuesNumber::Seven));
+        let seven: Result<DifferentValuesNumber, String> = 7u8.try_into();
+        assert_eq!(seven, Ok(DifferentValuesNumber::Seven));
+    }
 }
 
 #[rustfmt::skip]

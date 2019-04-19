@@ -16,9 +16,6 @@ proc-macro = true
 [features]
 complex-expressions = ["syn/full"]
 
-[workspace]
-members = ["tests"]
-
 [badges]
 travis-ci = { repository = "illicitonion/num_enum", branch = "master" }
 maintenance = { status = "experimental" }

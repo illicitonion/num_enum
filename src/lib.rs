@@ -65,7 +65,6 @@ struct EnumInfo {
     name: syn::Ident,
     repr: proc_macro2::Ident,
     value_expressions_to_enum_keys: Vec<(syn::Expr, syn::Ident)>,
-    visibility: syn::Visibility,
 }
 
 fn parse_enum(input: DeriveInput) -> EnumInfo {
@@ -123,7 +122,6 @@ fn parse_enum(input: DeriveInput) -> EnumInfo {
         name: input.ident,
         repr: repr.expect("Couldn't find repr for enum"),
         value_expressions_to_enum_keys: variants,
-        visibility: input.vis,
     }
 }
 
@@ -140,7 +138,6 @@ fn literal(i: u64) -> syn::Expr {
 
 struct TryIntoEnumInfo {
     name: proc_macro2::Ident,
-    visibility: syn::Visibility,
     repr: proc_macro2::Ident,
     match_const_names: Vec<proc_macro2::Ident>,
     match_const_exprs: Vec<syn::Expr>,
@@ -171,7 +168,6 @@ impl TryIntoEnumInfo {
 
         TryIntoEnumInfo {
             name: enum_info.name,
-            visibility: enum_info.visibility,
             repr: enum_info.repr,
             match_const_names: match_const_names,
             match_const_exprs: match_const_exprs,

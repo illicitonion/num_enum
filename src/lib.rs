@@ -5,6 +5,14 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, Data, DeriveInput};
 
+macro_rules! die {
+    ($ident:expr, $($reason:expr),+) => {{
+        let message = format!("Can't generate num_enum traits for {} because {}.", $ident, format!($($reason),+));
+        println!("error: {}", message);
+        panic!("{}", message);
+    }}
+}
+
 #[proc_macro_derive(IntoPrimitive)]
 pub fn derive_into_primitive(stream: TokenStream) -> TokenStream {
     let input = parse_macro_input!(stream as DeriveInput);
@@ -79,13 +87,16 @@ fn parse_enum(input: DeriveInput) -> EnumInfo {
                     match group.stream().into_iter().next().unwrap() {
                         proc_macro2::TokenTree::Ident(ident) => {
                             if &format!("{}", ident) == "C" {
-                                panic!("Can't generate num_enum traits for repr(C) enums because they don't have a generally defined size.")
+                                die!(
+                                    input.ident,
+                                    "it has repr(C), which doesn't have a generally defined size"
+                                )
                             }
                             repr = Some(ident);
                             break;
                         }
                         val => {
-                            panic!("Got unexpected repr: {}", val);
+                            die!(input.ident, "it had unexpected repr: {}", val);
                         }
                     }
                 }
@@ -115,13 +126,16 @@ fn parse_enum(input: DeriveInput) -> EnumInfo {
             variants.push((disc, variant.ident.clone()));
         }
     } else {
-        panic!("Can only operate on enums");
+        die!(input.ident, "it was not an enum");
     }
-
-    EnumInfo {
-        name: input.ident,
-        repr: repr.expect("Couldn't find repr for enum"),
-        value_expressions_to_enum_keys: variants,
+    if let Some(repr) = repr {
+        EnumInfo {
+            name: input.ident,
+            repr: repr,
+            value_expressions_to_enum_keys: variants,
+        }
+    } else {
+        die!(input.ident, "it does not have a valid `#[repr]` attribute");
     }
 }
 

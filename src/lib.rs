@@ -55,7 +55,7 @@ pub fn derive_try_from_primitive(stream: TokenStream) -> TokenStream {
         impl ::std::convert::TryFrom<#repr> for #name {
             type Error=String;
 
-            fn try_from(number: #repr) -> Result<Self, Self::Error> {
+            fn try_from(number: #repr) -> Result<Self, String> {
                 #( const #match_const_names: #repeated_repr = #match_const_exprs; )*
 
                 match number {

@@ -252,3 +252,25 @@ fn visibility_is_fine() {
         Err("No value in enum VisibleNumber for value 2".to_owned())
     );
 }
+
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
+pub enum HasErrorVariant {
+    Ok,
+    Error,
+}
+
+#[test]
+fn error_variant_is_allowed() {
+    let ok: Result<HasErrorVariant, String> = 0u8.try_into();
+    assert_eq!(ok, Ok(HasErrorVariant::Ok));
+
+    let err: Result<HasErrorVariant, String> = 1u8.try_into();
+    assert_eq!(err, Ok(HasErrorVariant::Error));
+
+    let unknown: Result<HasErrorVariant, String> = 2u8.try_into();
+    assert_eq!(
+        unknown,
+        Err("No value in enum HasErrorVariant for value 2".to_owned())
+    );
+}

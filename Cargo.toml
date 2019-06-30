@@ -1,6 +1,6 @@
 [package]
 name = "num_enum"
-version = "0.2.2"
+version = "0.2.3"
 authors = ["Daniel Wagner-Hall <dawagner@gmail.com>"]
 description = "Procedural macros to make inter-operation between primitives and enums easier."
 edition = "2018"
@@ -15,6 +15,10 @@ proc-macro = true
 
 [features]
 complex-expressions = ["syn/full"]
+external_doc = []
+
+[package.metadata.docs.rs]
+features = ["external_doc"]
 
 [badges]
 travis-ci = { repository = "illicitonion/num_enum", branch = "master" }

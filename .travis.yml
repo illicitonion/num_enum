@@ -8,3 +8,10 @@ rust:
 script:
   - cargo test
   - cargo test --features=complex-expressions
+
+matrix:
+  include:
+    - name: "README.md doc test"
+      rust: "nightly"
+      script:
+        - cargo test --features=external_doc --doc

@@ -60,8 +60,8 @@ Some enum values may be composed of complex expressions, for example:
 
 ```rust
 enum Number {
-    Zero: (0, 1).0,
-    One: (0, 1),1,
+    Zero = (0, 1).0,
+    One = (0, 1).1,
 }
 ```
 

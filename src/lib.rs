@@ -1,17 +1,19 @@
+#![no_std]
 #![cfg_attr(feature = "external_doc", feature(external_doc))]
 #![cfg_attr(feature = "external_doc", doc(include = "../README.md"))]
 
 extern crate proc_macro;
 extern crate proc_macro2;
+extern crate alloc;
 
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, Data, DeriveInput};
+use alloc::{format, vec, vec::Vec, boxed::Box, string::String};
 
 macro_rules! die {
     ($ident:expr, $($reason:expr),+) => {{
         let message = format!("Can't generate num_enum traits for {} because {}.", $ident, format!($($reason),+));
-        println!("error: {}", message);
         panic!("{}", message);
     }}
 }
@@ -51,11 +53,11 @@ pub fn derive_try_from_primitive(stream: TokenStream) -> TokenStream {
     } = TryIntoEnumInfo::from(enum_info);
 
     let match_const_names2 = match_const_names.clone();
-    let repeated_repr = std::iter::repeat(repr.clone()).take(enum_keys.len());
-    let repeated_name = std::iter::repeat(name.clone()).take(enum_keys.len());
+    let repeated_repr = core::iter::repeat(repr.clone()).take(enum_keys.len());
+    let repeated_name = core::iter::repeat(name.clone()).take(enum_keys.len());
 
     let expanded = quote! {
-        impl ::std::convert::TryFrom<#repr> for #name {
+        impl ::core::convert::TryFrom<#repr> for #name {
             type Error=String;
 
             fn try_from(number: #repr) -> Result<Self, String> {

@@ -2,6 +2,7 @@ num_enum
 ========
 
 Procedural macros to make inter-operation between primitives and enums easier.
+This crate is no_std compatible.
 
 [![crates.io](https://img.shields.io/crates/v/num_enum.svg)](https://crates.io/crates/num_enum)
 [![Documentation](https://docs.rs/num_enum/badge.svg)](https://docs.rs/num_enum)

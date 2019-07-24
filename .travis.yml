@@ -12,6 +12,11 @@ script:
 matrix:
   include:
     - name: "README.md doc test"
-      rust: "nightly"
+      rust: nightly
       script:
         - cargo test --features=external_doc --doc
+    - name: "no-std build"
+      rust: stable
+      script:
+        - rustup target add thumbv6m-none-eabi
+        - cargo build --target=thumbv6m-none-eabi

@@ -2,14 +2,14 @@
 #![cfg_attr(feature = "external_doc", feature(external_doc))]
 #![cfg_attr(feature = "external_doc", doc(include = "../README.md"))]
 
+extern crate alloc;
 extern crate proc_macro;
 extern crate proc_macro2;
-extern crate alloc;
 
+use alloc::{boxed::Box, format, string::String, vec, vec::Vec};
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, Data, DeriveInput};
-use alloc::{format, vec, vec::Vec, boxed::Box, string::String};
 
 macro_rules! die {
     ($ident:expr, $($reason:expr),+) => {{

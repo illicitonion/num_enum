@@ -20,3 +20,8 @@ matrix:
       script:
         - rustup target add thumbv6m-none-eabi
         - cargo build --target=thumbv6m-none-eabi
+    - name: "cargo fmt"
+      rust: stable
+      script:
+        - rustup component add rustfmt
+        - cargo fmt -- --check

@@ -274,3 +274,26 @@ fn error_variant_is_allowed() {
         Err("No value in enum HasErrorVariant for value 2".to_owned())
     );
 }
+
+use num_enum::UnsafeFromPrimitive;
+
+#[derive(Debug, Eq, PartialEq, UnsafeFromPrimitive)]
+#[repr(u8)]
+enum HasUnsafeFromPrimitiveNumber {
+    Zero,
+    One,
+}
+
+#[test]
+fn has_unsafe_from_primitive_number() {
+    unsafe {
+        assert_eq!(
+            HasUnsafeFromPrimitiveNumber::Zero,
+            HasUnsafeFromPrimitiveNumber::from(0_u8)
+        );
+        assert_eq!(
+            HasUnsafeFromPrimitiveNumber::One,
+            HasUnsafeFromPrimitiveNumber::from(1_u8)
+        );
+    }
+}

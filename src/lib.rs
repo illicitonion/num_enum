@@ -74,6 +74,22 @@ pub fn derive_try_from_primitive(stream: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
+#[proc_macro_derive(UnsafeFromPrimitive)]
+pub fn derive_unsafe_from_primitive(stream: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(stream as DeriveInput);
+    let EnumInfo { name, repr, .. } = parse_enum(input);
+
+    let expanded = quote! {
+        impl #name {
+            pub unsafe fn from(num: #repr) -> Self {
+                ::core::intrinsics::transmute(num)
+            }
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+
 struct EnumInfo {
     name: syn::Ident,
     repr: proc_macro2::Ident,

@@ -54,6 +54,39 @@ fn convert() {
 }
 ```
 
+Unsafely turning a primitive into an enum with from_unchecked
+-------------------------------------------------------------
+
+If you're really certain a conversion will succeed, and want to avoid a small amount of overhead, you can use unsafe
+code to do this conversion. Unless you have data showing that the match statement generated in the `try_from` above is a
+bottleneck for you, you should avoid doing this, as the unsafe code has potential to cause serious memory issues in
+your programme.
+
+```rust
+use num_enum::UnsafeFromPrimitive;
+
+#[derive(Debug, Eq, PartialEq, UnsafeFromPrimitive)]
+#[repr(u8)]
+enum Number {
+    Zero,
+    One,
+}
+
+#[test]
+fn convert() {
+    unsafe {
+        assert_eq!(
+            Number::Zero,
+            Number::from_unchecked(0_u8)
+        );
+        assert_eq!(
+            Number::One,
+            Number::from_unchecked(1_u8)
+        );
+    }
+}
+```
+
 Optional features
 -----------------
 

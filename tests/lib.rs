@@ -289,11 +289,11 @@ fn has_unsafe_from_primitive_number() {
     unsafe {
         assert_eq!(
             HasUnsafeFromPrimitiveNumber::Zero,
-            HasUnsafeFromPrimitiveNumber::from(0_u8)
+            HasUnsafeFromPrimitiveNumber::from_unchecked(0_u8)
         );
         assert_eq!(
             HasUnsafeFromPrimitiveNumber::One,
-            HasUnsafeFromPrimitiveNumber::from(1_u8)
+            HasUnsafeFromPrimitiveNumber::from_unchecked(1_u8)
         );
     }
 }

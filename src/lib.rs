@@ -81,7 +81,7 @@ pub fn derive_unsafe_from_primitive(stream: TokenStream) -> TokenStream {
 
     let expanded = quote! {
         impl #name {
-            pub unsafe fn from(num: #repr) -> Self {
+            pub unsafe fn from_unchecked(num: #repr) -> Self {
                 ::core::intrinsics::transmute(num)
             }
         }

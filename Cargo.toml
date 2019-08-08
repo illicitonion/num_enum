@@ -14,8 +14,11 @@ license = "BSD-3-Clause"
 proc-macro = true
 
 [features]
+std = []
 complex-expressions = ["syn/full"]
 external_doc = []
+
+default = ["std"]  # disable to use in a `no_std` environment
 
 [package.metadata.docs.rs]
 features = ["external_doc"]
@@ -25,6 +28,6 @@ travis-ci = { repository = "illicitonion/num_enum", branch = "master" }
 maintenance = { status = "experimental" }
 
 [dependencies]
-proc-macro2 = "0.4.27"
-quote = "0.6.12"
-syn = "0.15.32"
+proc-macro2 = "0.4.30"
+proc-quote = "0.2.2"
+syn = "0.15.43"

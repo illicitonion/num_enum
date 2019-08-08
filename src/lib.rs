@@ -1,24 +1,18 @@
 #![cfg_attr(feature = "external_doc", feature(external_doc))]
 #![cfg_attr(feature = "external_doc", doc(include = "../README.md"))]
-#![cfg_attr(not(feature = "external_doc"),
+#![cfg_attr(
+    not(feature = "external_doc"),
     doc = "See https://docs.rs/num_enum for more info about this crate."
 )]
 
-extern crate proc_macro; use ::proc_macro::TokenStream;
-use ::proc_macro2::{
-    Span,
-};
-use ::proc_quote::{
-    quote,
-};
-use ::syn::{*,
-    parse::{
-        Parse,
-        ParseStream,
-    },
-};
-use ::std::{*,
-    iter::FromIterator,
+extern crate proc_macro;
+use ::proc_macro::TokenStream;
+use ::proc_macro2::Span;
+use ::proc_quote::quote;
+use ::std::{iter::FromIterator, *};
+use ::syn::{
+    parse::{Parse, ParseStream},
+    *,
 };
 
 macro_rules! die {
@@ -35,13 +29,8 @@ macro_rules! die {
     );
 }
 
-fn literal (i: u64) -> Expr
-{
-    let literal = LitInt::new(
-        i,
-        syn::IntSuffix::None,
-        Span::call_site(),
-    );
+fn literal(i: u64) -> Expr {
+    let literal = LitInt::new(i, syn::IntSuffix::None, Span::call_site());
     parse_quote! {
         #literal
     }
@@ -54,57 +43,55 @@ struct EnumInfo {
 }
 
 impl Parse for EnumInfo {
-    fn parse (input: ParseStream) -> Result<Self>
-    {Ok({
-        let input: DeriveInput = input.parse()?;
-        let name = input.ident;
-        let data = if let Data::Enum(data) = input.data {
-            data
-        } else {
-            let span = match input.data {
-                | Data::Union(data) => data.union_token.span,
-                | Data::Struct(data) => data.struct_token.span,
-                | _ => unreachable!(),
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok({
+            let input: DeriveInput = input.parse()?;
+            let name = input.ident;
+            let data = if let Data::Enum(data) = input.data {
+                data
+            } else {
+                let span = match input.data {
+                    Data::Union(data) => data.union_token.span,
+                    Data::Struct(data) => data.struct_token.span,
+                    _ => unreachable!(),
+                };
+                die!(span => "Expected enum");
             };
-            die!(span => "Expected enum");
-        };
 
-        let repr: Ident = {
-            let mut attrs = input.attrs.into_iter();
-            loop {
-                if let Some(attr) = attrs.next() {
-                    if let Ok(Meta::List(meta_list)) = attr.parse_meta() {
-                        if meta_list.ident == "repr" {
-                            let mut nested = meta_list.nested.iter();
-                            if nested.len() != 1 {
-                                die!(meta_list.ident.span()=>
-                                    "Expected exactly one `repr` argument"
-                                );
-                            }
-                            let repr = nested.next().unwrap();
-                            let repr: Ident = parse_quote! {
-                                #repr
-                            };
-                            if repr == "C" {
-                                die!(repr.span()=>
-                                    "repr(C) doesn't have a well defined size"
-                                );
-                            } else {
-                                break repr;
+            let repr: Ident = {
+                let mut attrs = input.attrs.into_iter();
+                loop {
+                    if let Some(attr) = attrs.next() {
+                        if let Ok(Meta::List(meta_list)) = attr.parse_meta() {
+                            if meta_list.ident == "repr" {
+                                let mut nested = meta_list.nested.iter();
+                                if nested.len() != 1 {
+                                    die!(meta_list.ident.span()=>
+                                        "Expected exactly one `repr` argument"
+                                    );
+                                }
+                                let repr = nested.next().unwrap();
+                                let repr: Ident = parse_quote! {
+                                    #repr
+                                };
+                                if repr == "C" {
+                                    die!(repr.span()=>
+                                        "repr(C) doesn't have a well defined size"
+                                    );
+                                } else {
+                                    break repr;
+                                }
                             }
                         }
+                    } else {
+                        die!("Missing `#[repr({Integer})]` attribute");
                     }
-                } else {
-                    die!("Missing `#[repr({Integer})]` attribute");
                 }
-            }
-        };
+            };
 
-        let mut next_discriminant = literal(0);
-        let value_expressions_to_enum_keys = Vec::from_iter(
-            data.variants
-                .into_iter()
-                .map(|variant| {
+            let mut next_discriminant = literal(0);
+            let value_expressions_to_enum_keys =
+                Vec::from_iter(data.variants.into_iter().map(|variant| {
                     let disc = if let Some(d) = variant.discriminant {
                         d.1
                     } else {
@@ -114,20 +101,19 @@ impl Parse for EnumInfo {
                         #repr::wrapping_add(#disc, 1)
                     };
                     (disc, variant.ident)
-                })
-        );
+                }));
 
-        EnumInfo {
-            name,
-            repr,
-            value_expressions_to_enum_keys,
-        }
-    })}
+            EnumInfo {
+                name,
+                repr,
+                value_expressions_to_enum_keys,
+            }
+        })
+    }
 }
 
-#[proc_macro_derive(IntoPrimitive)] pub
-fn derive_into_primitive(input: TokenStream) -> TokenStream
-{
+#[proc_macro_derive(IntoPrimitive)]
+pub fn derive_into_primitive(input: TokenStream) -> TokenStream {
     let EnumInfo { name, repr, .. } = parse_macro_input!(input as EnumInfo);
 
     TokenStream::from(quote! {
@@ -141,21 +127,16 @@ fn derive_into_primitive(input: TokenStream) -> TokenStream
     })
 }
 
-#[proc_macro_derive(TryFromPrimitive)] pub
-fn derive_try_from_primitive(input: TokenStream) -> TokenStream
-{
+#[proc_macro_derive(TryFromPrimitive)]
+pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
     let EnumInfo {
         name,
         repr,
         value_expressions_to_enum_keys,
     } = parse_macro_input!(input);
 
-    let mut match_const_exprs = Vec::with_capacity(
-        value_expressions_to_enum_keys.len()
-    );
-    let mut enum_keys = Vec::with_capacity(
-        value_expressions_to_enum_keys.len()
-    );
+    let mut match_const_exprs = Vec::with_capacity(value_expressions_to_enum_keys.len());
+    let mut enum_keys = Vec::with_capacity(value_expressions_to_enum_keys.len());
     value_expressions_to_enum_keys
         .into_iter()
         .for_each(|(enum_value_expression, enum_key)| {
@@ -163,17 +144,14 @@ fn derive_try_from_primitive(input: TokenStream) -> TokenStream
             // `Two = ONE + 1u8` work properly.
             match_const_exprs.push(enum_value_expression.clone());
             enum_keys.push(enum_key);
-        })
-    ;
+        });
 
-    let no_match_message = LitStr::new(&format!(
-        "No value in enum `{name}` for value `{{}}`", name=name
-    ), Span::call_site());
-
-    let try_into_name_error = Ident::new(
-        &format!("TryInto{}Error", &name),
+    let no_match_message = LitStr::new(
+        &format!("No value in enum `{name}` for value `{{}}`", name = name),
         Span::call_site(),
     );
+
+    let try_into_name_error = Ident::new(&format!("TryInto{}Error", &name), Span::call_site());
 
     let mut expanded = quote! {
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -230,21 +208,24 @@ fn derive_try_from_primitive(input: TokenStream) -> TokenStream
     expanded.into()
 }
 
-#[proc_macro_derive(UnsafeFromPrimitive)] pub
-fn derive_unsafe_from_primitive(stream: TokenStream) -> TokenStream
-{
+#[proc_macro_derive(UnsafeFromPrimitive)]
+pub fn derive_unsafe_from_primitive(stream: TokenStream) -> TokenStream {
     let EnumInfo { name, repr, .. } = parse_macro_input!(stream as EnumInfo);
 
-    let doc_string = LitStr::new(&format!(r#"
+    let doc_string = LitStr::new(
+        &format!(
+            r#"
 Transmutes `number: {repr}` into a [`{name}`].
 
 # Safety
 
   - `number` must be a valid discriminant of [`{name}`]
 "#,
-        repr = repr,
-        name = name,
-    ), Span::call_site());
+            repr = repr,
+            name = name,
+        ),
+        Span::call_site(),
+    );
 
     TokenStream::from(quote! {
         impl #name {

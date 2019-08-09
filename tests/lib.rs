@@ -41,7 +41,7 @@ fn simple() {
     let three: Result<SimpleNumber, _> = 3u8.try_into();
     assert_eq!(
         three.unwrap_err().to_string(),
-        "No value in enum `SimpleNumber` for value `3`"
+        "No discriminant in enum `SimpleNumber` matches the value `3`"
     );
 }
 
@@ -61,7 +61,7 @@ fn even() {
     let one: Result<EvenNumber, _> = 1u8.try_into();
     assert_eq!(
         one.unwrap_err().to_string(),
-        "No value in enum `EvenNumber` for value `1`"
+        "No discriminant in enum `EvenNumber` matches the value `1`"
     );
 
     let two: Result<EvenNumber, _> = 2u8.try_into();
@@ -70,7 +70,7 @@ fn even() {
     let three: Result<EvenNumber, _> = 3u8.try_into();
     assert_eq!(
         three.unwrap_err().to_string(),
-        "No value in enum `EvenNumber` for value `3`"
+        "No discriminant in enum `EvenNumber` matches the value `3`"
     );
 
     let four: Result<EvenNumber, _> = 4u8.try_into();
@@ -97,7 +97,7 @@ fn skipped_value() {
     let two: Result<SkippedNumber, _> = 2u8.try_into();
     assert_eq!(
         two.unwrap_err().to_string(),
-        "No value in enum `SkippedNumber` for value `2`"
+        "No discriminant in enum `SkippedNumber` matches the value `2`"
     );
 
     let three: Result<SkippedNumber, _> = 3u8.try_into();
@@ -127,7 +127,7 @@ fn wrong_order() {
     let two: Result<WrongOrderNumber, _> = 2u8.try_into();
     assert_eq!(
         two.unwrap_err().to_string(),
-        "No value in enum `WrongOrderNumber` for value `2`"
+        "No discriminant in enum `WrongOrderNumber` matches the value `2`"
     );
 
     let three: Result<WrongOrderNumber, _> = 3u8.try_into();
@@ -166,7 +166,7 @@ mod complex {
 
         let three: Result<DifferentValuesNumber, _> = 3u8.try_into();
         assert_eq!(
-            three,unwrap          "No value in enum `DifferentValuesNumber` for value `3`"
+            three,unwrap          "No discriminant in enum `DifferentValuesNumber` matches the value `3`"
         );
 
         let four: Result<DifferentValuesNumber, _> = 4u8.try_into();
@@ -202,7 +202,7 @@ fn missing_trailing_comma() {
     let two: Result<MissingTrailingCommaNumber, _> = 2u8.try_into();
     assert_eq!(
         two.unwrap_err().to_string(),
-        "No value in enum `MissingTrailingCommaNumber` for value `2`"
+        "No discriminant in enum `MissingTrailingCommaNumber` matches the value `2`"
     );
 }
 
@@ -226,7 +226,7 @@ fn ignores_extra_attributes() {
     let two: Result<ExtraAttributes, _> = 2u8.try_into();
     assert_eq!(
         two.unwrap_err().to_string(),
-        "No value in enum `ExtraAttributes` for value `2`"
+        "No discriminant in enum `ExtraAttributes` matches the value `2`"
     );
 }
 
@@ -248,7 +248,7 @@ fn visibility_is_fine() {
     let two: Result<VisibleNumber, _> = 2u8.try_into();
     assert_eq!(
         two.unwrap_err().to_string(),
-        "No value in enum `VisibleNumber` for value `2`"
+        "No discriminant in enum `VisibleNumber` matches the value `2`"
     );
 }
 
@@ -270,7 +270,7 @@ fn error_variant_is_allowed() {
     let unknown: Result<HasErrorVariant, _> = 2u8.try_into();
     assert_eq!(
         unknown.unwrap_err().to_string(),
-        "No value in enum `HasErrorVariant` for value `2`"
+        "No discriminant in enum `HasErrorVariant` matches the value `2`"
     );
 }
 

@@ -50,7 +50,7 @@ fn main() {
     let three = Number::try_from(3u8);
     assert_eq!(
         three.unwrap_err().to_string(),
-        "No value in enum `Number` for value `3`",
+        "No discriminant in enum `Number` matches the value `3`",
     );
 }
 ```

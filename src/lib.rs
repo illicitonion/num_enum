@@ -9,10 +9,11 @@ extern crate proc_macro;
 use ::proc_macro::TokenStream;
 use ::proc_macro2::Span;
 use ::proc_quote::quote;
-use ::std::{iter::FromIterator, *};
+use ::std::iter::FromIterator;
 use ::syn::{
     parse::{Parse, ParseStream},
-    *,
+    parse_macro_input, parse_quote, Data, DeriveInput, Error, Expr, Ident, LitInt, LitStr, Meta,
+    Result,
 };
 
 macro_rules! die {
@@ -147,7 +148,10 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
         });
 
     let no_match_message = LitStr::new(
-        &format!("No value in enum `{name}` for value `{{}}`", name = name),
+        &format!(
+            "No discriminant in enum `{name}` matches the value `{{}}`",
+            name = name
+        ),
         Span::call_site(),
     );
 
@@ -219,7 +223,7 @@ Transmutes `number: {repr}` into a [`{name}`].
 
 # Safety
 
-  - `number` must be a valid discriminant of [`{name}`]
+  - `number` must represent a valid discriminant of [`{name}`]
 "#,
             repr = repr,
             name = name,
@@ -238,19 +242,4 @@ Transmutes `number: {repr}` into a [`{name}`].
             }
         }
     })
-}
-
-mod doctest_readme {
-    macro_rules! with_doc {(
-        #[doc = $doc_string:expr]
-        $item:item
-    ) => (
-        #[doc = $doc_string]
-        $item
-    )}
-
-    with_doc! {
-        #[doc = include_str!("../README.md")]
-        extern {}
-    }
 }

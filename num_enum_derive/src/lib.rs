@@ -33,7 +33,7 @@ fn literal(i: u64) -> Expr {
 struct EnumInfo {
     name: Ident,
     repr: Ident,
-    value_expressions_to_enum_keys: Vec<(syn::Expr, syn::Ident)>,
+    value_expressions_to_enum_keys: Vec<(Expr, Ident)>,
 }
 
 impl Parse for EnumInfo {
@@ -177,16 +177,8 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
         value_expressions_to_enum_keys,
     } = parse_macro_input!(input);
 
-    let mut match_const_exprs = Vec::with_capacity(value_expressions_to_enum_keys.len());
-    let mut enum_keys = Vec::with_capacity(value_expressions_to_enum_keys.len());
-    value_expressions_to_enum_keys
-        .into_iter()
-        .for_each(|(enum_value_expression, enum_key)| {
-            // Use an intermediate const so that enums defined like
-            // `Two = ONE + 1u8` work properly.
-            match_const_exprs.push(enum_value_expression.clone());
-            enum_keys.push(enum_key);
-        });
+    let (match_const_exprs, enum_keys): (Vec<Expr>, Vec<Ident>) =
+        value_expressions_to_enum_keys.into_iter().unzip();
 
     let krate = Ident::new(
         &::proc_macro_crate::crate_name("num_enum")
@@ -211,6 +203,8 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
                 ::#krate::TryFromPrimitiveError<Self>,
             >
             {
+                // Use intermediate const(s) so that enums defined like
+                // `Two = ONE + 1u8` work properly.
                 #![allow(non_upper_case_globals)]
                 #(
                     const #enum_keys: #repr =

@@ -5,7 +5,7 @@ fn main() {
         .arg("--manifest-path")
         .arg(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/tests/renamed_num_enum/Cargo.toml",
+            "/../renamed_num_enum/Cargo.toml",
         ))
         .status()
         .unwrap()

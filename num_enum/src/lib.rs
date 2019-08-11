@@ -6,7 +6,7 @@
 )]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub use ::proc_macro::{IntoPrimitive, TryFromPrimitive, UnsafeFromPrimitive};
+pub use ::num_enum_derive::{IntoPrimitive, TryFromPrimitive, UnsafeFromPrimitive};
 
 use ::core::fmt;
 

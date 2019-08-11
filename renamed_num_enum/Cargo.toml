@@ -5,4 +5,4 @@ edition = "2018"
 
 [dependencies.renamed]
 package = "num_enum"
-path = "../.."
+path = "../num_enum"

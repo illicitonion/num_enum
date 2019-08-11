@@ -29,7 +29,7 @@ fn main() {
 
 `num_enum`'s `IntoPrimitive` is more type-safe than using `as`, because `as` will silently truncate - `num_enum` only derives `From` for exactly the discriminant type of the enum.
 
-Turning a primitive into an enum with try_from
+Attempting to turn a primitive into an enum with try_from
 ----------------------------------------------
 
 ```rust
@@ -61,7 +61,7 @@ Unsafely turning a primitive into an enum with from_unchecked
 If you're really certain a conversion will succeed, and want to avoid a small amount of overhead, you can use unsafe
 code to do this conversion. Unless you have data showing that the match statement generated in the `try_from` above is a
 bottleneck for you, you should avoid doing this, as the unsafe code has potential to cause serious memory issues in
-your programme.
+your program.
 
 ```rust
 use num_enum::UnsafeFromPrimitive;
@@ -74,16 +74,18 @@ enum Number {
 }
 
 fn main() {
-    unsafe {
-        assert_eq!(
-            Number::Zero,
-            Number::from_unchecked(0_u8)
-        );
-        assert_eq!(
-            Number::One,
-            Number::from_unchecked(1_u8)
-        );
-    }
+    assert_eq!(
+        Number::Zero,
+        unsafe { Number::from_unchecked(0_u8) },
+    );
+    assert_eq!(
+        Number::One,
+        unsafe { Number::from_unchecked(1_u8) },
+    );
+}
+
+unsafe fn undefined_behavior() {
+    let _ = Number::from_unchecked(2); // 2 is not a valid discriminant!
 }
 ```
 

@@ -1,5 +1,5 @@
 #![cfg_attr(feature = "external_doc", feature(external_doc))]
-#![cfg_attr(feature = "external_doc", doc(include = "../README.md"))]
+#![cfg_attr(feature = "external_doc", doc(include = "../../README.md"))]
 #![cfg_attr(
     not(feature = "external_doc"),
     doc = "See https://docs.rs/num_enum for more info about this crate."

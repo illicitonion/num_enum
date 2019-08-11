@@ -23,7 +23,7 @@ matrix:
         - rustup target add thumbv6m-none-eabi
         # Need to cd because of https://github.com/rust-lang/cargo/issues/5364
         - (cd num_enum && cargo build --target=thumbv6m-none-eabi --no-default-features -p num_enum)
-        - (cd num_enum_renamed && cargo build --target=thumbv6m-none-eabi --no-default-features --manifest-path=tests/renamed_num_enum/Cargo.toml --lib)
+        - (cd renamed_num_enum && cargo build --target=thumbv6m-none-eabi --no-default-features -p renamed_num_enum --lib)
     - name: "cargo fmt"
       rust: stable
       script:

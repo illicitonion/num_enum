@@ -19,7 +19,7 @@ pub trait TryFromPrimitive: Sized {
 }
 
 #[derive(::derivative::Derivative)]
-#[derivative( // use derivative to remove incorrect bound on `Enum` parameter
+#[derivative( // use derivative to remove incorrect bound on `Enum` parameter. See https://github.com/rust-lang/rust/issues/26925
     Debug(bound = ""),
     Clone(bound = ""),
     Copy(bound = ""),

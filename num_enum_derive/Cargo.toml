@@ -11,7 +11,6 @@ license = "BSD-3-Clause"
 
 [lib]
 proc-macro = true
-path = "mod.rs"
 
 [features]
 std = []

@@ -11,8 +11,8 @@ categories = ["rust-patterns"]
 license = "BSD-3-Clause"
 
 [features]
-std = ["num_enum_derive/std", ]
-complex-expressions = ["num_enum_derive/complex-expressions", ]
+std = ["num_enum_derive/std"]
+complex-expressions = ["num_enum_derive/complex-expressions"]
 external_doc = []
 
 default = ["std"]  # disable to use in a `no_std` environment
@@ -26,4 +26,4 @@ maintenance = { status = "experimental" }
 
 [dependencies]
 derivative = { version = "1.0.2", features = ["use_core"] }
-num_enum_derive = { path = "../num_enum_derive" }
+num_enum_derive = { path = "../num_enum_derive", default-features = false }

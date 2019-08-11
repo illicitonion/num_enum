@@ -113,7 +113,7 @@ enum WrongOrderNumber {
     Four = 4,
     Three = 3,
     Zero = 0,
-    One = 1,
+    One, // Zero + 1
 }
 
 #[test]
@@ -166,7 +166,8 @@ mod complex {
 
         let three: Result<DifferentValuesNumber, _> = 3u8.try_into();
         assert_eq!(
-            three,unwrap          "No discriminant in enum `DifferentValuesNumber` matches the value `3`"
+            three.unwrap_err().to_string(),
+            "No discriminant in enum `DifferentValuesNumber` matches the value `3`",
         );
 
         let four: Result<DifferentValuesNumber, _> = 4u8.try_into();

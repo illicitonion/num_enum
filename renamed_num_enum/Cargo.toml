@@ -1,0 +1,12 @@
+[package]
+name = "renamed_num_enum"
+version = "0.0.0"
+edition = "2018"
+
+[features]
+std = ["renamed/std"]
+
+[dependencies.renamed]
+package = "num_enum"
+path = "../num_enum"
+default-features = false

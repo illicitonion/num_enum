@@ -21,8 +21,7 @@ enum Number {
     One,
 }
 
-#[test]
-fn convert() {
+fn main() {
     let zero: u8 = Number::Zero.into();
     assert_eq!(zero, 0u8);
 }
@@ -35,7 +34,7 @@ Turning a primitive into an enum with try_from
 
 ```rust
 use num_enum::TryFromPrimitive;
-use std::convert::TryInto;
+use std::convert::TryFrom;
 
 #[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
 #[repr(u8)]
@@ -44,13 +43,15 @@ enum Number {
     One,
 }
 
-#[test]
-fn convert() {
-    let zero: Number = 0u8.try_into().unwrap();
+fn main() {
+    let zero = Number::try_from(0u8);
     assert_eq!(zero, Ok(Number::Zero));
 
-    let three: Result<Number, String> = 3u8.try_into();
-    assert_eq!(three, Err("No value in enum Number for value 3".to_owned()));
+    let three = Number::try_from(3u8);
+    assert_eq!(
+        three.unwrap_err().to_string(),
+        "No discriminant in enum `Number` matches the value `3`",
+    );
 }
 ```
 
@@ -72,8 +73,7 @@ enum Number {
     One,
 }
 
-#[test]
-fn convert() {
+fn main() {
     unsafe {
         assert_eq!(
             Number::Zero,

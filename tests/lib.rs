@@ -35,13 +35,13 @@ enum SimpleNumber {
 
 #[test]
 fn simple() {
-    let zero: Result<SimpleNumber, String> = 0u8.try_into();
+    let zero: Result<SimpleNumber, _> = 0u8.try_into();
     assert_eq!(zero, Ok(SimpleNumber::Zero));
 
-    let three: Result<SimpleNumber, String> = 3u8.try_into();
+    let three: Result<SimpleNumber, _> = 3u8.try_into();
     assert_eq!(
-        three,
-        Err("No value in enum SimpleNumber for value 3".to_owned())
+        three.unwrap_err().to_string(),
+        "No discriminant in enum `SimpleNumber` matches the value `3`"
     );
 }
 
@@ -55,25 +55,25 @@ enum EvenNumber {
 
 #[test]
 fn even() {
-    let zero: Result<EvenNumber, String> = 0u8.try_into();
+    let zero: Result<EvenNumber, _> = 0u8.try_into();
     assert_eq!(zero, Ok(EvenNumber::Zero));
 
-    let one: Result<EvenNumber, String> = 1u8.try_into();
+    let one: Result<EvenNumber, _> = 1u8.try_into();
     assert_eq!(
-        one,
-        Err("No value in enum EvenNumber for value 1".to_owned())
+        one.unwrap_err().to_string(),
+        "No discriminant in enum `EvenNumber` matches the value `1`"
     );
 
-    let two: Result<EvenNumber, String> = 2u8.try_into();
+    let two: Result<EvenNumber, _> = 2u8.try_into();
     assert_eq!(two, Ok(EvenNumber::Two));
 
-    let three: Result<EvenNumber, String> = 3u8.try_into();
+    let three: Result<EvenNumber, _> = 3u8.try_into();
     assert_eq!(
-        three,
-        Err("No value in enum EvenNumber for value 3".to_owned())
+        three.unwrap_err().to_string(),
+        "No discriminant in enum `EvenNumber` matches the value `3`"
     );
 
-    let four: Result<EvenNumber, String> = 4u8.try_into();
+    let four: Result<EvenNumber, _> = 4u8.try_into();
     assert_eq!(four, Ok(EvenNumber::Four));
 }
 
@@ -88,22 +88,22 @@ enum SkippedNumber {
 
 #[test]
 fn skipped_value() {
-    let zero: Result<SkippedNumber, String> = 0u8.try_into();
+    let zero: Result<SkippedNumber, _> = 0u8.try_into();
     assert_eq!(zero, Ok(SkippedNumber::Zero));
 
-    let one: Result<SkippedNumber, String> = 1u8.try_into();
+    let one: Result<SkippedNumber, _> = 1u8.try_into();
     assert_eq!(one, Ok(SkippedNumber::One));
 
-    let two: Result<SkippedNumber, String> = 2u8.try_into();
+    let two: Result<SkippedNumber, _> = 2u8.try_into();
     assert_eq!(
-        two,
-        Err("No value in enum SkippedNumber for value 2".to_owned())
+        two.unwrap_err().to_string(),
+        "No discriminant in enum `SkippedNumber` matches the value `2`"
     );
 
-    let three: Result<SkippedNumber, String> = 3u8.try_into();
+    let three: Result<SkippedNumber, _> = 3u8.try_into();
     assert_eq!(three, Ok(SkippedNumber::Three));
 
-    let four: Result<SkippedNumber, String> = 4u8.try_into();
+    let four: Result<SkippedNumber, _> = 4u8.try_into();
     assert_eq!(four, Ok(SkippedNumber::Four));
 }
 
@@ -118,22 +118,22 @@ enum WrongOrderNumber {
 
 #[test]
 fn wrong_order() {
-    let zero: Result<WrongOrderNumber, String> = 0u8.try_into();
+    let zero: Result<WrongOrderNumber, _> = 0u8.try_into();
     assert_eq!(zero, Ok(WrongOrderNumber::Zero));
 
-    let one: Result<WrongOrderNumber, String> = 1u8.try_into();
+    let one: Result<WrongOrderNumber, _> = 1u8.try_into();
     assert_eq!(one, Ok(WrongOrderNumber::One));
 
-    let two: Result<WrongOrderNumber, String> = 2u8.try_into();
+    let two: Result<WrongOrderNumber, _> = 2u8.try_into();
     assert_eq!(
-        two,
-        Err("No value in enum WrongOrderNumber for value 2".to_owned())
+        two.unwrap_err().to_string(),
+        "No discriminant in enum `WrongOrderNumber` matches the value `2`"
     );
 
-    let three: Result<WrongOrderNumber, String> = 3u8.try_into();
+    let three: Result<WrongOrderNumber, _> = 3u8.try_into();
     assert_eq!(three, Ok(WrongOrderNumber::Three));
 
-    let four: Result<WrongOrderNumber, String> = 4u8.try_into();
+    let four: Result<WrongOrderNumber, _> = 4u8.try_into();
     assert_eq!(four, Ok(WrongOrderNumber::Four));
 }
 
@@ -155,31 +155,30 @@ mod complex {
 
     #[test]
     fn different_values() {
-        let zero: Result<DifferentValuesNumber, String> = 0u8.try_into();
+        let zero: Result<DifferentValuesNumber, _> = 0u8.try_into();
         assert_eq!(zero, Ok(DifferentValuesNumber::Zero));
 
-        let one: Result<DifferentValuesNumber, String> = 1u8.try_into();
+        let one: Result<DifferentValuesNumber, _> = 1u8.try_into();
         assert_eq!(one, Ok(DifferentValuesNumber::One));
 
-        let two: Result<DifferentValuesNumber, String> = 2u8.try_into();
+        let two: Result<DifferentValuesNumber, _> = 2u8.try_into();
         assert_eq!(two, Ok(DifferentValuesNumber::Two));
 
-        let three: Result<DifferentValuesNumber, String> = 3u8.try_into();
+        let three: Result<DifferentValuesNumber, _> = 3u8.try_into();
         assert_eq!(
-            three,
-            Err("No value in enum DifferentValuesNumber for value 3".to_owned())
+            three,unwrap          "No discriminant in enum `DifferentValuesNumber` matches the value `3`"
         );
 
-        let four: Result<DifferentValuesNumber, String> = 4u8.try_into();
+        let four: Result<DifferentValuesNumber, _> = 4u8.try_into();
         assert_eq!(four, Ok(DifferentValuesNumber::Four));
 
-        let five: Result<DifferentValuesNumber, String> = 5u8.try_into();
+        let five: Result<DifferentValuesNumber, _> = 5u8.try_into();
         assert_eq!(five, Ok(DifferentValuesNumber::Five));
 
-        let six: Result<DifferentValuesNumber, String> = 6u8.try_into();
+        let six: Result<DifferentValuesNumber, _> = 6u8.try_into();
         assert_eq!(six, Ok(DifferentValuesNumber::Six));
 
-        let seven: Result<DifferentValuesNumber, String> = 7u8.try_into();
+        let seven: Result<DifferentValuesNumber, _> = 7u8.try_into();
         assert_eq!(seven, Ok(DifferentValuesNumber::Seven));
     }
 }
@@ -194,16 +193,16 @@ enum MissingTrailingCommaNumber {
 
 #[test]
 fn missing_trailing_comma() {
-    let zero: Result<MissingTrailingCommaNumber, String> = 0u8.try_into();
+    let zero: Result<MissingTrailingCommaNumber, _> = 0u8.try_into();
     assert_eq!(zero, Ok(MissingTrailingCommaNumber::Zero));
 
-    let one: Result<MissingTrailingCommaNumber, String> = 1u8.try_into();
+    let one: Result<MissingTrailingCommaNumber, _> = 1u8.try_into();
     assert_eq!(one, Ok(MissingTrailingCommaNumber::One));
 
-    let two: Result<MissingTrailingCommaNumber, String> = 2u8.try_into();
+    let two: Result<MissingTrailingCommaNumber, _> = 2u8.try_into();
     assert_eq!(
-        two,
-        Err("No value in enum MissingTrailingCommaNumber for value 2".to_owned())
+        two.unwrap_err().to_string(),
+        "No discriminant in enum `MissingTrailingCommaNumber` matches the value `2`"
     );
 }
 
@@ -218,16 +217,16 @@ enum ExtraAttributes {
 
 #[test]
 fn ignores_extra_attributes() {
-    let zero: Result<ExtraAttributes, String> = 0u8.try_into();
+    let zero: Result<ExtraAttributes, _> = 0u8.try_into();
     assert_eq!(zero, Ok(ExtraAttributes::Zero));
 
-    let one: Result<ExtraAttributes, String> = 1u8.try_into();
+    let one: Result<ExtraAttributes, _> = 1u8.try_into();
     assert_eq!(one, Ok(ExtraAttributes::One));
 
-    let two: Result<ExtraAttributes, String> = 2u8.try_into();
+    let two: Result<ExtraAttributes, _> = 2u8.try_into();
     assert_eq!(
-        two,
-        Err("No value in enum ExtraAttributes for value 2".to_owned())
+        two.unwrap_err().to_string(),
+        "No discriminant in enum `ExtraAttributes` matches the value `2`"
     );
 }
 
@@ -240,16 +239,16 @@ pub(crate) enum VisibleNumber {
 
 #[test]
 fn visibility_is_fine() {
-    let zero: Result<VisibleNumber, String> = 0u8.try_into();
+    let zero: Result<VisibleNumber, _> = 0u8.try_into();
     assert_eq!(zero, Ok(VisibleNumber::Zero));
 
-    let one: Result<VisibleNumber, String> = 1u8.try_into();
+    let one: Result<VisibleNumber, _> = 1u8.try_into();
     assert_eq!(one, Ok(VisibleNumber::One));
 
-    let two: Result<VisibleNumber, String> = 2u8.try_into();
+    let two: Result<VisibleNumber, _> = 2u8.try_into();
     assert_eq!(
-        two,
-        Err("No value in enum VisibleNumber for value 2".to_owned())
+        two.unwrap_err().to_string(),
+        "No discriminant in enum `VisibleNumber` matches the value `2`"
     );
 }
 
@@ -262,16 +261,16 @@ pub enum HasErrorVariant {
 
 #[test]
 fn error_variant_is_allowed() {
-    let ok: Result<HasErrorVariant, String> = 0u8.try_into();
+    let ok: Result<HasErrorVariant, _> = 0u8.try_into();
     assert_eq!(ok, Ok(HasErrorVariant::Ok));
 
-    let err: Result<HasErrorVariant, String> = 1u8.try_into();
+    let err: Result<HasErrorVariant, _> = 1u8.try_into();
     assert_eq!(err, Ok(HasErrorVariant::Error));
 
-    let unknown: Result<HasErrorVariant, String> = 2u8.try_into();
+    let unknown: Result<HasErrorVariant, _> = 2u8.try_into();
     assert_eq!(
-        unknown,
-        Err("No value in enum HasErrorVariant for value 2".to_owned())
+        unknown.unwrap_err().to_string(),
+        "No discriminant in enum `HasErrorVariant` matches the value `2`"
     );
 }
 

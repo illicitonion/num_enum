@@ -6,8 +6,10 @@ rust:
   - nightly
 
 script:
-  - cargo test
-  - cargo test --features=complex-expressions
+  - cargo test --no-default-features --features="std"
+  - cargo test --no-default-features --features="std complex-expressions"
+  - cargo test --no-default-features --features=""
+  - cargo test --no-default-features --features="complex-expressions"
 
 matrix:
   include:
@@ -19,7 +21,7 @@ matrix:
       rust: stable
       script:
         - rustup target add thumbv6m-none-eabi
-        - cargo build --target=thumbv6m-none-eabi
+        - cargo build --target=thumbv6m-none-eabi --no-default-features
     - name: "cargo fmt"
       rust: stable
       script:

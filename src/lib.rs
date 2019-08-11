@@ -1,213 +1,245 @@
-#![no_std]
 #![cfg_attr(feature = "external_doc", feature(external_doc))]
 #![cfg_attr(feature = "external_doc", doc(include = "../README.md"))]
+#![cfg_attr(
+    not(feature = "external_doc"),
+    doc = "See https://docs.rs/num_enum for more info about this crate."
+)]
 
-extern crate alloc;
 extern crate proc_macro;
-extern crate proc_macro2;
-
-use alloc::{boxed::Box, format, string::String, vec, vec::Vec};
-use proc_macro::TokenStream;
-use quote::quote;
-use syn::{parse_macro_input, Data, DeriveInput};
+use ::proc_macro::TokenStream;
+use ::proc_macro2::Span;
+use ::proc_quote::quote;
+use ::std::iter::FromIterator;
+use ::syn::{
+    parse::{Parse, ParseStream},
+    parse_macro_input, parse_quote, Data, DeriveInput, Error, Expr, Ident, LitInt, LitStr, Meta,
+    Result,
+};
 
 macro_rules! die {
-    ($ident:expr, $($reason:expr),+) => {{
-        let message = format!("Can't generate num_enum traits for {} because {}.", $ident, format!($($reason),+));
-        panic!("{}", message);
-    }}
+    ($span:expr=>
+        $msg:expr
+    ) => (
+        return Err(Error::new($span, $msg));
+    );
+
+    (
+        $msg:expr
+    ) => (
+        die!(Span::call_site() => $msg)
+    );
+}
+
+fn literal(i: u64) -> Expr {
+    let literal = LitInt::new(i, syn::IntSuffix::None, Span::call_site());
+    parse_quote! {
+        #literal
+    }
+}
+
+struct EnumInfo {
+    name: Ident,
+    repr: Ident,
+    value_expressions_to_enum_keys: Vec<(syn::Expr, syn::Ident)>,
+}
+
+impl Parse for EnumInfo {
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok({
+            let input: DeriveInput = input.parse()?;
+            let name = input.ident;
+            let data = if let Data::Enum(data) = input.data {
+                data
+            } else {
+                let span = match input.data {
+                    Data::Union(data) => data.union_token.span,
+                    Data::Struct(data) => data.struct_token.span,
+                    _ => unreachable!(),
+                };
+                die!(span => "Expected enum");
+            };
+
+            let repr: Ident = {
+                let mut attrs = input.attrs.into_iter();
+                loop {
+                    if let Some(attr) = attrs.next() {
+                        if let Ok(Meta::List(meta_list)) = attr.parse_meta() {
+                            if meta_list.ident == "repr" {
+                                let mut nested = meta_list.nested.iter();
+                                if nested.len() != 1 {
+                                    die!(meta_list.ident.span()=>
+                                        "Expected exactly one `repr` argument"
+                                    );
+                                }
+                                let repr = nested.next().unwrap();
+                                let repr: Ident = parse_quote! {
+                                    #repr
+                                };
+                                if repr == "C" {
+                                    die!(repr.span()=>
+                                        "repr(C) doesn't have a well defined size"
+                                    );
+                                } else {
+                                    break repr;
+                                }
+                            }
+                        }
+                    } else {
+                        die!("Missing `#[repr({Integer})]` attribute");
+                    }
+                }
+            };
+
+            let mut next_discriminant = literal(0);
+            let value_expressions_to_enum_keys =
+                Vec::from_iter(data.variants.into_iter().map(|variant| {
+                    let disc = if let Some(d) = variant.discriminant {
+                        d.1
+                    } else {
+                        next_discriminant.clone()
+                    };
+                    next_discriminant = parse_quote! {
+                        #repr::wrapping_add(#disc, 1)
+                    };
+                    (disc, variant.ident)
+                }));
+
+            EnumInfo {
+                name,
+                repr,
+                value_expressions_to_enum_keys,
+            }
+        })
+    }
 }
 
 #[proc_macro_derive(IntoPrimitive)]
-pub fn derive_into_primitive(stream: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(stream as DeriveInput);
-    let enum_info = parse_enum(input);
+pub fn derive_into_primitive(input: TokenStream) -> TokenStream {
+    let EnumInfo { name, repr, .. } = parse_macro_input!(input as EnumInfo);
 
-    let name = enum_info.name;
-    let repr = enum_info.repr;
-
-    let expanded = quote! {
+    TokenStream::from(quote! {
         impl From<#name> for #repr {
-            fn from(number: #name) -> Self {
-                number as Self
+            #[inline]
+            fn from (enum_value: #name) -> Self
+            {
+                enum_value as Self
             }
         }
-    };
-
-    TokenStream::from(expanded)
+    })
 }
 
 #[proc_macro_derive(TryFromPrimitive)]
-pub fn derive_try_from_primitive(stream: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(stream as DeriveInput);
-    let enum_info = parse_enum(input);
-
-    let TryIntoEnumInfo {
+pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
+    let EnumInfo {
         name,
         repr,
-        match_const_names,
-        match_const_exprs,
-        enum_keys,
-        no_match_message,
-        ..
-    } = TryIntoEnumInfo::from(enum_info);
+        value_expressions_to_enum_keys,
+    } = parse_macro_input!(input);
 
-    let match_const_names2 = match_const_names.clone();
-    let repeated_repr = core::iter::repeat(repr.clone()).take(enum_keys.len());
-    let repeated_name = core::iter::repeat(name.clone()).take(enum_keys.len());
+    let mut match_const_exprs = Vec::with_capacity(value_expressions_to_enum_keys.len());
+    let mut enum_keys = Vec::with_capacity(value_expressions_to_enum_keys.len());
+    value_expressions_to_enum_keys
+        .into_iter()
+        .for_each(|(enum_value_expression, enum_key)| {
+            // Use an intermediate const so that enums defined like
+            // `Two = ONE + 1u8` work properly.
+            match_const_exprs.push(enum_value_expression.clone());
+            enum_keys.push(enum_key);
+        });
 
-    let expanded = quote! {
-        impl ::core::convert::TryFrom<#repr> for #name {
-            type Error=String;
+    let no_match_message = LitStr::new(
+        &format!(
+            "No discriminant in enum `{name}` matches the value `{{}}`",
+            name = name
+        ),
+        Span::call_site(),
+    );
 
-            fn try_from(number: #repr) -> Result<Self, String> {
-                #( const #match_const_names: #repeated_repr = #match_const_exprs; )*
+    let try_into_name_error = Ident::new(&format!("TryInto{}Error", &name), Span::call_site());
 
-                match number {
-                    #( #match_const_names2 => Ok(#repeated_name::#enum_keys), )*
-                    _ => Err(format!(#no_match_message, number)),
-                }
+    let mut expanded = quote! {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        #[doc(hidden)] pub
+        struct #try_into_name_error {
+            number: #repr,
+        }
+
+        impl ::core::fmt::Display for #try_into_name_error {
+            fn fmt (
+                self: &'_ Self,
+                stream: &'_ mut ::core::fmt::Formatter<'_>,
+            ) -> ::core::fmt::Result
+            {
+                write!(stream,
+                    #no_match_message, self.number,
+                )
             }
         }
     };
+    if cfg!(feature = "std") {
+        expanded.extend(quote! {
+            impl ::std::error::Error for #try_into_name_error {}
+        });
+    }
+    expanded.extend(quote! {
+        impl ::core::convert::TryFrom<#repr> for #name {
+            type Error = #try_into_name_error;
 
-    TokenStream::from(expanded)
+            fn try_from (
+                number: #repr,
+            ) -> ::core::result::Result<Self, #try_into_name_error>
+            {
+                #![allow(non_upper_case_globals)]
+                #(
+                    const #enum_keys: #repr =
+                        #match_const_exprs
+                    ;
+                )*
+                match number {
+                    #(
+                        | #enum_keys => ::core::result::Result::Ok(
+                            #name::#enum_keys
+                        ),
+                    )*
+                    | _ => ::core::result::Result::Err(
+                        #try_into_name_error { number }
+                    ),
+                }
+            }
+        }
+    });
+
+    expanded.into()
 }
 
 #[proc_macro_derive(UnsafeFromPrimitive)]
 pub fn derive_unsafe_from_primitive(stream: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(stream as DeriveInput);
-    let EnumInfo { name, repr, .. } = parse_enum(input);
+    let EnumInfo { name, repr, .. } = parse_macro_input!(stream as EnumInfo);
 
-    let expanded = quote! {
+    let doc_string = LitStr::new(
+        &format!(
+            r#"
+Transmutes `number: {repr}` into a [`{name}`].
+
+# Safety
+
+  - `number` must represent a valid discriminant of [`{name}`]
+"#,
+            repr = repr,
+            name = name,
+        ),
+        Span::call_site(),
+    );
+
+    TokenStream::from(quote! {
         impl #name {
-            pub unsafe fn from_unchecked(num: #repr) -> Self {
-                ::core::intrinsics::transmute(num)
+            #[doc = #doc_string]
+            #[inline]
+            pub
+            unsafe
+            fn from_unchecked(number: #repr) -> Self {
+                ::core::mem::transmute(number)
             }
         }
-    };
-
-    TokenStream::from(expanded)
-}
-
-struct EnumInfo {
-    name: syn::Ident,
-    repr: proc_macro2::Ident,
-    value_expressions_to_enum_keys: Vec<(syn::Expr, syn::Ident)>,
-}
-
-fn parse_enum(input: DeriveInput) -> EnumInfo {
-    let mut repr = None;
-    for attr in input.attrs {
-        if attr.path.segments.len() == 1
-            && format!("{}", attr.path.segments.first().unwrap().value().ident) == "repr"
-        {
-            let tokens: Vec<proc_macro2::TokenTree> = attr.tts.into_iter().collect();
-            if tokens.len() == 1 {
-                if let proc_macro2::TokenTree::Group(ref group) = tokens[0] {
-                    match group.stream().into_iter().next().unwrap() {
-                        proc_macro2::TokenTree::Ident(ident) => {
-                            if &format!("{}", ident) == "C" {
-                                die!(
-                                    input.ident,
-                                    "it has repr(C), which doesn't have a generally defined size"
-                                )
-                            }
-                            repr = Some(ident);
-                            break;
-                        }
-                        val => {
-                            die!(input.ident, "it had unexpected repr: {}", val);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    let mut variants = vec![];
-
-    let mut next_discriminant = literal(0);
-
-    if let Data::Enum(data) = input.data {
-        for variant in data.variants {
-            let disc = if let Some(d) = variant.discriminant {
-                d.1
-            } else {
-                next_discriminant
-            };
-            next_discriminant = syn::Expr::Binary(syn::ExprBinary {
-                attrs: vec![],
-                left: Box::new(disc.clone()),
-                op: syn::BinOp::Add(syn::token::Add {
-                    spans: [proc_macro2::Span::call_site()],
-                }),
-                right: Box::new(literal(1)),
-            });
-            variants.push((disc, variant.ident.clone()));
-        }
-    } else {
-        die!(input.ident, "it was not an enum");
-    }
-    if let Some(repr) = repr {
-        EnumInfo {
-            name: input.ident,
-            repr: repr,
-            value_expressions_to_enum_keys: variants,
-        }
-    } else {
-        die!(input.ident, "it does not have a valid `#[repr]` attribute");
-    }
-}
-
-fn literal(i: u64) -> syn::Expr {
-    syn::Expr::Lit(syn::ExprLit {
-        attrs: vec![],
-        lit: syn::Lit::Int(syn::LitInt::new(
-            i,
-            syn::IntSuffix::None,
-            proc_macro2::Span::call_site(),
-        )),
     })
-}
-
-struct TryIntoEnumInfo {
-    name: proc_macro2::Ident,
-    repr: proc_macro2::Ident,
-    match_const_names: Vec<proc_macro2::Ident>,
-    match_const_exprs: Vec<syn::Expr>,
-    enum_keys: Vec<proc_macro2::Ident>,
-    no_match_message: String,
-}
-
-impl TryIntoEnumInfo {
-    fn from(enum_info: EnumInfo) -> TryIntoEnumInfo {
-        let mut match_const_names =
-            Vec::with_capacity(enum_info.value_expressions_to_enum_keys.len());
-        let mut match_const_exprs =
-            Vec::with_capacity(enum_info.value_expressions_to_enum_keys.len());
-        let mut enum_keys = Vec::with_capacity(enum_info.value_expressions_to_enum_keys.len());
-
-        for (enum_value_expression, enum_key) in enum_info.value_expressions_to_enum_keys {
-            // Use an intermediate const so that enums defined like `Two = ONE + 1u8` work properly.
-            let match_const = format!("__num_enum_match_{}", enum_key);
-            match_const_names.push(proc_macro2::Ident::new(
-                &match_const,
-                proc_macro2::Span::call_site(),
-            ));
-            match_const_exprs.push(enum_value_expression.clone());
-            enum_keys.push(enum_key);
-        }
-
-        let no_match_message = format!("No value in enum {} for value {{}}", enum_info.name);
-
-        TryIntoEnumInfo {
-            name: enum_info.name,
-            repr: enum_info.repr,
-            match_const_names: match_const_names,
-            match_const_exprs: match_const_exprs,
-            enum_keys: enum_keys,
-            no_match_message: no_match_message,
-        }
-    }
 }

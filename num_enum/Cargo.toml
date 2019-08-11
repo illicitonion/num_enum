@@ -26,4 +26,4 @@ maintenance = { status = "experimental" }
 
 [dependencies]
 derivative = { version = "1.0.2", features = ["use_core"] }
-num_enum_derive = { path = "../num_enum_derive", default-features = false }
+num_enum_derive = { version = "0.3.1", path = "../num_enum_derive", default-features = false }

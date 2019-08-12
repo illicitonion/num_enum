@@ -3,7 +3,7 @@ name = "num_enum"
 version = "0.4.0"  # Keep in sync with num_enum_derive.
 authors = [
   "Daniel Wagner-Hall <dawagner@gmail.com>",
-  "Daniel Henry-Mantilla <daniel.henry-mantilla@polytechnique.org>",
+  "Daniel Henry-Mantilla <daniel.henry.mantilla@gmail.com>",
 ]
 description = "Procedural macros to make inter-operation between primitives and enums easier."
 edition = "2018"

@@ -1,6 +1,6 @@
 [package]
 name = "num_enum"
-version = "0.4.0"  # Keep in sync with num_enum_derive.
+version = "0.4.1"  # Keep in sync with num_enum_derive.
 authors = [
   "Daniel Wagner-Hall <dawagner@gmail.com>",
   "Daniel Henry-Mantilla <daniel.henry.mantilla@gmail.com>",
@@ -29,4 +29,4 @@ maintenance = { status = "passively-maintained" }
 
 [dependencies]
 derivative = { version = "1.0.2", features = ["use_core"] }
-num_enum_derive = { version = "0.4.0", path = "../num_enum_derive", default-features = false }
+num_enum_derive = { version = "0.4.1", path = "../num_enum_derive", default-features = false }

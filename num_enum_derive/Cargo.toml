@@ -1,6 +1,6 @@
 [package]
 name = "num_enum_derive"
-version = "0.4.0"  # Keep in sync with num_enum.
+version = "0.4.1"  # Keep in sync with num_enum.
 authors = [
   "Daniel Wagner-Hall <dawagner@gmail.com>",
   "Daniel Henry-Mantilla <daniel.henry.mantilla@gmail.com>",

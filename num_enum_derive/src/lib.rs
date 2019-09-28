@@ -91,8 +91,9 @@ impl Parse for EnumInfo {
                     } else {
                         next_discriminant.clone()
                     };
+                    let ref variant_ident = variant.ident;
                     next_discriminant = parse_quote! {
-                        #repr::wrapping_add(#disc, 1)
+                        #repr::wrapping_add(#variant_ident, 1)
                     };
                     (disc, variant.ident)
                 }));

@@ -1,13 +1,16 @@
+extern crate alloc;
 extern crate proc_macro;
 use ::proc_macro::TokenStream;
 use ::proc_macro2::Span;
-use ::quote::quote;
+use ::quote::{quote, ToTokens};
 use ::std::iter::FromIterator;
 use ::syn::{
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote, Data, DeriveInput, Error, Expr, Ident, LitInt, LitStr, Meta,
     Result,
 };
+use alloc::format;
+use alloc::str::FromStr;
 
 macro_rules! die {
     ($span:expr=>
@@ -93,7 +96,7 @@ impl Parse for EnumInfo {
                     } else {
                         next_discriminant.clone()
                     };
-                    let ref variant_ident = variant.ident;
+                    let variant_ident = &variant.ident;
                     next_discriminant = parse_quote! {
                         #repr::wrapping_add(#variant_ident, 1)
                     };
@@ -180,9 +183,6 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
         value_expressions_to_enum_keys,
     } = parse_macro_input!(input);
 
-    let (match_const_exprs, enum_keys): (Vec<Expr>, Vec<Ident>) =
-        value_expressions_to_enum_keys.into_iter().unzip();
-
     let krate = Ident::new(
         &::proc_macro_crate::crate_name("num_enum")
             .map(::std::borrow::Cow::from)
@@ -193,55 +193,52 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
         Span::call_site(),
     );
 
-    TokenStream::from(quote! {
-        impl ::#krate::TryFromPrimitive for #name {
-            type Primitive = #repr;
+    let mut s = String::new();
+    s.push_str(&format!(
+        r#"impl ::{krate}::TryFromPrimitive for {name} {{
+    type Primitive = {repr};
+    const NAME: &'static str = "{name}";
+    fn try_from_primitive(
+        number: Self::Primitive,
+    ) -> ::core::result::Result<Self, ::{krate}::TryFromPrimitiveError<Self>> {{
+        #![allow(non_upper_case_globals)]
+"#,
+        krate = krate,
+        repr = repr,
+        name = name
+    ));
+    for (match_const_expr, enum_key) in &value_expressions_to_enum_keys {
+        s.push_str(&format!(
+            "        const {enum_key}: {repr} = {match_const_expr};\n",
+            enum_key = enum_key,
+            repr = repr,
+            match_const_expr = match_const_expr.into_token_stream(),
+        ));
+    }
+    s.push_str("        match number {\n");
+    for (_match_const_expr, enum_key) in &value_expressions_to_enum_keys {
+        s.push_str(&format!(
+            "            {enum_key} => ::core::result::Result::Ok({name}::{enum_key}),\n",
+            enum_key = enum_key,
+            name = name
+        ));
+    }
+    s.push_str(&format!(r#"            _ => ::core::result::Result::Err(::{krate}::TryFromPrimitiveError {{ number }}),
+        }}
+    }}
+}}
+impl ::core::convert::TryFrom<{repr}> for {name} {{
+    type Error = ::{krate}::TryFromPrimitiveError<Self>;
+    #[inline]
+    fn try_from(
+        number: {repr},
+    ) -> ::core::result::Result<Self, ::{krate}::TryFromPrimitiveError<Self>> {{
+        ::{krate}::TryFromPrimitive::try_from_primitive(number)
+    }}
+}}
+"#, krate=krate, repr=repr, name=name));
 
-            const NAME: &'static str = stringify!(#name);
-
-            fn try_from_primitive (
-                number: Self::Primitive,
-            ) -> ::core::result::Result<
-                Self,
-                ::#krate::TryFromPrimitiveError<Self>,
-            >
-            {
-                // Use intermediate const(s) so that enums defined like
-                // `Two = ONE + 1u8` work properly.
-                #![allow(non_upper_case_globals)]
-                #(
-                    const #enum_keys: #repr =
-                        #match_const_exprs
-                    ;
-                )*
-                match number {
-                    #(
-                        | #enum_keys => ::core::result::Result::Ok(
-                            #name::#enum_keys
-                        ),
-                    )*
-                    | _ => ::core::result::Result::Err(
-                        ::#krate::TryFromPrimitiveError { number }
-                    ),
-                }
-            }
-        }
-
-        impl ::core::convert::TryFrom<#repr> for #name {
-            type Error = ::#krate::TryFromPrimitiveError<Self>;
-
-            #[inline]
-            fn try_from (
-                number: #repr,
-            ) -> ::core::result::Result<
-                    Self,
-                    ::#krate::TryFromPrimitiveError<Self>,
-                >
-            {
-                ::#krate::TryFromPrimitive::try_from_primitive(number)
-            }
-        }
-    })
+    TokenStream::from_str(&s).unwrap()
 }
 
 /// Generates a `unsafe fn from_unchecked (number: Primitive) -> Self`

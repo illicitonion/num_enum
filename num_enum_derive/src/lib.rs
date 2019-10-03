@@ -1,7 +1,7 @@
 extern crate proc_macro;
 use ::proc_macro::TokenStream;
 use ::proc_macro2::Span;
-use ::proc_quote::quote;
+use ::quote::quote;
 use ::std::iter::FromIterator;
 use ::syn::{
     parse::{Parse, ParseStream},

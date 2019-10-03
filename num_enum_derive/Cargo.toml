@@ -28,5 +28,5 @@ features = ["external_doc"]
 [dependencies]
 proc-macro2 = "1"
 proc-macro-crate = "0.1.4"
-proc-quote = "0.3"
+quote = "1"
 syn = "1"

@@ -1,7 +1,7 @@
 extern crate proc_macro;
 use ::proc_macro::TokenStream;
 use ::proc_macro2::Span;
-use ::proc_quote::quote;
+use ::quote::quote;
 use ::std::iter::FromIterator;
 use ::syn::{
     parse::{Parse, ParseStream},
@@ -24,7 +24,7 @@ macro_rules! die {
 }
 
 fn literal(i: u64) -> Expr {
-    let literal = LitInt::new(i, syn::IntSuffix::None, Span::call_site());
+    let literal = LitInt::new(&i.to_string(), Span::call_site());
     parse_quote! {
         #literal
     }
@@ -57,23 +57,25 @@ impl Parse for EnumInfo {
                 loop {
                     if let Some(attr) = attrs.next() {
                         if let Ok(Meta::List(meta_list)) = attr.parse_meta() {
-                            if meta_list.ident == "repr" {
-                                let mut nested = meta_list.nested.iter();
-                                if nested.len() != 1 {
-                                    die!(meta_list.ident.span()=>
-                                        "Expected exactly one `repr` argument"
-                                    );
-                                }
-                                let repr = nested.next().unwrap();
-                                let repr: Ident = parse_quote! {
-                                    #repr
-                                };
-                                if repr == "C" {
-                                    die!(repr.span()=>
-                                        "repr(C) doesn't have a well defined size"
-                                    );
-                                } else {
-                                    break repr;
+                            if let Some(ident) = meta_list.path.get_ident() {
+                                if ident == "repr" {
+                                    let mut nested = meta_list.nested.iter();
+                                    if nested.len() != 1 {
+                                        die!(ident.span()=>
+                                            "Expected exactly one `repr` argument"
+                                        );
+                                    }
+                                    let repr = nested.next().unwrap();
+                                    let repr: Ident = parse_quote! {
+                                        #repr
+                                    };
+                                    if repr == "C" {
+                                        die!(repr.span()=>
+                                            "repr(C) doesn't have a well defined size"
+                                        );
+                                    } else {
+                                        break repr;
+                                    }
                                 }
                             }
                         }

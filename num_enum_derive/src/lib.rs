@@ -24,7 +24,7 @@ macro_rules! die {
 }
 
 fn literal(i: u64) -> Expr {
-    let literal = LitInt::new(&format!("{}", i), Span::call_site());
+    let literal = LitInt::new(&i.to_string(), Span::call_site());
     parse_quote! {
         #literal
     }

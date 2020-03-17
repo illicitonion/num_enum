@@ -6,10 +6,10 @@ rust:
   - nightly
 
 script:
-  - cargo test --no-default-features --features="std"
-  - cargo test --no-default-features --features="std complex-expressions"
-  - cargo test --no-default-features --features=""
-  - cargo test --no-default-features --features="complex-expressions"
+  - cargo test --manifest-path=num_enum/Cargo.toml --no-default-features --features="std"
+  - cargo test --manifest-path=num_enum/Cargo.toml --no-default-features --features="std complex-expressions"
+  - cargo test --manifest-path=num_enum/Cargo.toml --no-default-features --features=""
+  - cargo test --manifest-path=num_enum/Cargo.toml --no-default-features --features="complex-expressions"
 
 matrix:
   include:

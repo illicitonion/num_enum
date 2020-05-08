@@ -1,0 +1,15 @@
+[package]
+name = "serde_example"
+version = "0.1.0"
+authors = [
+  "Daniel Wagner-Hall <dawagner@gmail.com>",
+  "Daniel Henry-Mantilla <daniel.henry.mantilla@gmail.com>",
+]
+description = "Example crate using num_enum and serde. Regression test for https://github.com/illicitonion/num_enum/issues/18."
+edition = "2018"
+repository = "https://github.com/illicitonion/num_enum"
+publish = false
+
+[dependencies]
+num_enum = { path = "../num_enum", default-features = false }
+serde = { version = "1", default_features = false, features = ["derive"] }

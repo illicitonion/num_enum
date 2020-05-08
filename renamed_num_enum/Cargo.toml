@@ -4,10 +4,8 @@ version = "0.0.0"
 edition = "2018"
 publish = false
 
-[features]
-std = ["renamed/std"]
-
 [dependencies.renamed]
 package = "num_enum"
 path = "../num_enum"
 default-features = false
+features = ["std"]

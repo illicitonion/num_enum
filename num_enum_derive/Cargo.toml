@@ -16,7 +16,11 @@ license = "BSD-3-Clause"
 proc-macro = true
 
 [features]
-std = []
+# Don't depend on proc-macro-crate in no_std environments because it causes an awkward depndency
+# on serde with std.
+#
+# See https://github.com/illicitonion/num_enum/issues/18
+std = ["proc-macro-crate"]
 complex-expressions = ["syn/full"]
 external_doc = []
 
@@ -27,6 +31,6 @@ features = ["external_doc"]
 
 [dependencies]
 proc-macro2 = "1"
-proc-macro-crate = "0.1.4"
+proc-macro-crate = { version = "0.1.4", optional = true }
 quote = "1"
 syn = "1"

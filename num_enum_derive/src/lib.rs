@@ -183,15 +183,7 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
     let (match_const_exprs, enum_keys): (Vec<Expr>, Vec<Ident>) =
         value_expressions_to_enum_keys.into_iter().unzip();
 
-    let krate = Ident::new(
-        &::proc_macro_crate::crate_name("num_enum")
-            .map(::std::borrow::Cow::from)
-            .unwrap_or_else(|err| {
-                eprintln!("Warning: {}\n    => defaulting to `num_enum`", err,);
-                "num_enum".into()
-            }),
-        Span::call_site(),
-    );
+    let krate = Ident::new(&get_crate_name(), Span::call_site());
 
     TokenStream::from(quote! {
         impl ::#krate::TryFromPrimitive for #name {
@@ -242,6 +234,25 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
             }
         }
     })
+}
+
+#[cfg(feature = "proc-macro-crate")]
+fn get_crate_name() -> String {
+    ::proc_macro_crate::crate_name("num_enum").unwrap_or_else(|err| {
+        eprintln!("Warning: {}\n    => defaulting to `num_enum`", err,);
+        String::from("num_enum")
+    })
+}
+
+// Don't depend on proc-macro-crate in no_std environments because it causes an awkward depndency
+// on serde with std.
+//
+// no_std dependees on num_enum cannot rename the num_enum crate when they depend on it. Sorry.
+//
+// See https://github.com/illicitonion/num_enum/issues/18
+#[cfg(not(feature = "proc-macro-crate"))]
+fn get_crate_name() -> String {
+    String::from("num_enum")
 }
 
 /// Generates a `unsafe fn from_unchecked (number: Primitive) -> Self`

@@ -297,3 +297,11 @@ fn has_unsafe_from_primitive_number() {
         );
     }
 }
+
+mod failing_compiles {
+    #[test]
+    fn failing_compiles() {
+        let t = trybuild::TestCases::new();
+        t.compile_fail("tests/failing_examples/*.rs")
+    }
+}

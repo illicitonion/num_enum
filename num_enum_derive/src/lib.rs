@@ -187,6 +187,9 @@ impl Parse for EnumInfo {
                     .filter_map(|attribute| {
                         match attribute.parse_args_with(NumEnumVariantAttributes::parse) {
                             Ok(NumEnumVariantAttributes::Default) => {
+                                if default_variant.is_some() {
+                                    panic!("Multiple variants marked `#[num_enum(default)]` found");
+                                }
                                 default_variant = Some(ident.clone());
                                 None
                             }

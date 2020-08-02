@@ -1,3 +1,6 @@
+use num_enum::{FromPrimitive, TryFromPrimitive, UnsafeFromPrimitive};
+use std::convert::{TryInto, TryFrom};
+
 mod into_primitive {
     use num_enum::IntoPrimitive;
 
@@ -21,9 +24,6 @@ mod into_primitive {
         assert_eq!(two, 2u8);
     }
 }
-
-use num_enum::TryFromPrimitive;
-use std::convert::TryInto;
 
 #[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
 #[repr(u8)]
@@ -275,8 +275,6 @@ fn error_variant_is_allowed() {
     );
 }
 
-use num_enum::UnsafeFromPrimitive;
-
 #[derive(Debug, Eq, PartialEq, UnsafeFromPrimitive)]
 #[repr(u8)]
 enum HasUnsafeFromPrimitiveNumber {
@@ -288,14 +286,140 @@ enum HasUnsafeFromPrimitiveNumber {
 fn has_unsafe_from_primitive_number() {
     unsafe {
         assert_eq!(
-            HasUnsafeFromPrimitiveNumber::Zero,
-            HasUnsafeFromPrimitiveNumber::from_unchecked(0_u8)
+            HasUnsafeFromPrimitiveNumber::from_unchecked(0_u8),
+            HasUnsafeFromPrimitiveNumber::Zero
         );
         assert_eq!(
-            HasUnsafeFromPrimitiveNumber::One,
-            HasUnsafeFromPrimitiveNumber::from_unchecked(1_u8)
+            HasUnsafeFromPrimitiveNumber::from_unchecked(1_u8),
+            HasUnsafeFromPrimitiveNumber::One
         );
     }
+}
+
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
+enum VariantAliases {
+    Zero = 0,
+    #[num_enum(aliases = [2, 3])]
+    OneTwoOrThree = 1,
+}
+
+#[test]
+fn alias_values() {
+    type Enum = VariantAliases;
+
+    let zero: Result<Enum, _> = 0u8.try_into();
+    assert_eq!(zero, Ok(Enum::Zero));
+
+    let one: Result<Enum, _> = 1u8.try_into();
+    assert_eq!(one, Ok(Enum::OneTwoOrThree));
+
+    let two: Result<Enum, _> = 2u8.try_into();
+    assert_eq!(two, Ok(Enum::OneTwoOrThree));
+
+    let three: Result<Enum, _> = 3u8.try_into();
+    assert_eq!(three, Ok(Enum::OneTwoOrThree));
+
+    let four: Result<Enum, _> = 4u8.try_into();
+    assert_eq!(
+        four.unwrap_err().to_string(),
+        "No discriminant in enum `VariantAliases` matches the value `4`"
+    );
+}
+
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
+enum DefaultVariant {
+    Zero = 0,
+    One = 1,
+    #[num_enum(default)]
+    Other = 2,
+}
+
+#[test]
+fn default_value() {
+    type Enum = DefaultVariant;
+
+    let zero: Result<Enum, _> = 0u8.try_into();
+    assert_eq!(zero, Ok(Enum::Zero));
+
+    let one: Result<Enum, _> = 1u8.try_into();
+    assert_eq!(one, Ok(Enum::One));
+
+    let two: Result<Enum, _> = 2u8.try_into();
+    assert_eq!(two, Ok(Enum::Other));
+
+    let max_value: Result<Enum, _> = u8::max_value().try_into();
+    assert_eq!(max_value, Ok(Enum::Other));
+}
+
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
+enum VariantAliasesAndDefaultVariant {
+    #[num_enum(default)]
+    Zero = 0,
+    One = 1,
+    #[num_enum(aliases = [3])]
+    TwoOrThree = 2,
+}
+
+#[test]
+fn alias_values_and_default_value() {
+    type Enum = VariantAliasesAndDefaultVariant;
+
+    let zero: Result<Enum, _> = 0u8.try_into();
+    assert_eq!(zero, Ok(Enum::Zero));
+
+    let one: Result<Enum, _> = 1u8.try_into();
+    assert_eq!(one, Ok(Enum::One));
+
+    let two: Result<Enum, _> = 2u8.try_into();
+    assert_eq!(two, Ok(Enum::TwoOrThree));
+
+    let three: Result<Enum, _> = 3u8.try_into();
+    assert_eq!(three, Ok(Enum::TwoOrThree));
+
+    let four: Result<Enum, _> = 4u8.try_into();
+    assert_eq!(four, Ok(Enum::Zero));
+}
+
+#[derive(Debug, Eq, PartialEq, FromPrimitive)]
+#[repr(u8)]
+enum HasFromPrimitiveNumber {
+    Zero = 0,
+    #[num_enum(default)]
+    NonZero = 1,
+}
+
+#[test]
+fn has_from_primitive_number() {
+    type Enum = HasFromPrimitiveNumber;
+
+    let zero = Enum::from_primitive(0_u8);
+    assert_eq!(zero, Enum::Zero);
+
+    let one = Enum::from_primitive(1_u8);
+    assert_eq!(one, Enum::NonZero);
+
+    let two = Enum::from_primitive(2_u8);
+    assert_eq!(two, Enum::NonZero);
+
+    // #[derive(FromPrimitive)] also generates implementations for:
+    //
+    // - From<T>
+    // - TryFromPrimitive<T>
+    // - TryFrom<T>
+    let from_primitive = Enum::from_primitive(0_u8);
+    assert_eq!(from_primitive, Enum::Zero);
+
+    let from = Enum::from(0_u8);
+    assert_eq!(from, Enum::Zero);
+
+    let try_from_primitive = Enum::try_from_primitive(0_u8);
+    assert_eq!(try_from_primitive, Ok(Enum::Zero));
+
+    let try_from = Enum::try_from(0_u8);
+    assert_eq!(try_from, Ok(Enum::Zero));
 }
 
 mod failing_compiles {

@@ -6,9 +6,15 @@
 )]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub use ::num_enum_derive::{IntoPrimitive, TryFromPrimitive, UnsafeFromPrimitive};
+pub use ::num_enum_derive::{FromPrimitive, IntoPrimitive, TryFromPrimitive, UnsafeFromPrimitive};
 
 use ::core::fmt;
+
+pub trait FromPrimitive: Sized {
+    type Primitive: Copy + Eq;
+
+    fn from_primitive(number: Self::Primitive) -> Self;
+}
 
 pub trait TryFromPrimitive: Sized {
     type Primitive: Copy + Eq + fmt::Debug;

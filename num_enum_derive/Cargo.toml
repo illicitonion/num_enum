@@ -33,4 +33,4 @@ features = ["external_doc"]
 proc-macro2 = "1"
 proc-macro-crate = { version = "0.1.4", optional = true }
 quote = "1"
-syn = "1"
+syn = { version = "1", features = ["parsing"] }

@@ -55,6 +55,78 @@ fn main() {
 }
 ```
 
+Variant aliases
+---------------
+
+Sometimes a single enum variant might be representable by multiple numeric values.
+
+The `#[num_enum(aliases = [..])]` attribute allows you to define additional value aliases for individual variants.
+
+(The behavior of `IntoPrimitive` is unaffected by this attribute, it will always return the canonical value.)
+
+```rust
+use num_enum::TryFromPrimitive;
+use std::convert::TryFrom;
+
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
+enum Number {
+    Zero = 0,
+    #[num_enum(aliases = [2])]
+    OneOrTwo = 1,
+}
+
+fn main() {
+    let zero = Number::try_from(0u8);
+    assert_eq!(zero, Ok(Number::Zero));
+
+    let one = Number::try_from(1u8);
+    assert_eq!(one, Ok(Number::OneOrTwo));
+
+    let two = Number::try_from(2u8);
+    assert_eq!(two, Ok(Number::OneOrTwo));
+
+    let three = Number::try_from(3u8);
+    assert_eq!(
+        three.unwrap_err().to_string(),
+        "No discriminant in enum `Number` matches the value `3`",
+    );
+}
+```
+
+Default variant
+---------------
+
+Sometimes it is desirable to have an `Other` variant in an enum that acts as a kind of a wildcard matching all the value not yet covered by other variants.
+
+The `#[num_enum(default)]` attribute allows you to mark variant as the default.
+
+(The behavior of `IntoPrimitive` is unaffected by this attribute, it will always return the canonical value.)
+
+```rust
+use num_enum::TryFromPrimitive;
+use std::convert::TryFrom;
+
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
+enum Number {
+    Zero = 0,
+    #[num_enum(default)]
+    NonZero = 1,
+}
+
+fn main() {
+    let zero = Number::try_from(0u8);
+    assert_eq!(zero, Ok(Number::Zero));
+
+    let one = Number::try_from(1u8);
+    assert_eq!(one, Ok(Number::NonZero));
+
+    let two = Number::try_from(2u8);
+    assert_eq!(two, Ok(Number::NonZero));
+}
+```
+
 Unsafely turning a primitive into an enum with from_unchecked
 -------------------------------------------------------------
 

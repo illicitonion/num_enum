@@ -321,6 +321,8 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
             type Primitive = #repr;
 
             fn from_primitive(number: Self::Primitive) -> Self {
+                #![deny(unreachable_patterns)]
+
                 // Use intermediate const(s) so that enums defined like
                 // `Two = ONE + 1u8` work properly.
                 #![allow(non_upper_case_globals)]
@@ -454,6 +456,8 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
                 ::#krate::TryFromPrimitiveError<Self>,
             >
             {
+                #![deny(unreachable_patterns)]
+
                 // Use intermediate const(s) so that enums defined like
                 // `Two = ONE + 1u8` work properly.
                 #![allow(non_upper_case_globals)]

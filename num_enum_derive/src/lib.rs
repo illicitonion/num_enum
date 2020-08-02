@@ -33,12 +33,12 @@ fn literal(i: u64) -> Expr {
 
 mod kw {
     syn::custom_keyword!(default);
-    syn::custom_keyword!(aliases);
+    syn::custom_keyword!(alternatives);
 }
 
 enum NumEnumVariantAttributes {
     Default,
-    Aliases(VariantAliasesAttribute),
+    Alternatives(VariantAlternativesAttribute),
 }
 
 impl Parse for NumEnumVariantAttributes {
@@ -47,22 +47,22 @@ impl Parse for NumEnumVariantAttributes {
         if lookahead.peek(kw::default) {
             let _: kw::default = input.parse()?;
             Ok(Self::Default)
-        } else if lookahead.peek(kw::aliases) {
-            input.parse().map(Self::Aliases)
+        } else if lookahead.peek(kw::alternatives) {
+            input.parse().map(Self::Alternatives)
         } else {
             Err(lookahead.error())
         }
     }
 }
 
-struct VariantAliasesAttribute {
-    _keyword: kw::aliases,
+struct VariantAlternativesAttribute {
+    _keyword: kw::alternatives,
     _eq_token: syn::Token![=],
     _bracket_token: syn::token::Bracket,
     expressions: syn::punctuated::Punctuated<Expr, syn::Token![,]>,
 }
 
-impl Parse for VariantAliasesAttribute {
+impl Parse for VariantAlternativesAttribute {
     fn parse(input: ParseStream) -> Result<Self> {
         let content;
         Ok(Self {
@@ -77,7 +77,7 @@ impl Parse for VariantAliasesAttribute {
 struct VariantInfo {
     ident: Ident,
     canonical_value: Expr,
-    alias_values: Vec<Expr>,
+    alternative_values: Vec<Expr>,
 }
 
 struct EnumInfo {
@@ -87,36 +87,36 @@ struct EnumInfo {
     default_variant: Option<Ident>,
 }
 
-struct CanonicalAndAliases<T> {
+struct CanonicalAndAlternatives<T> {
     canonical: Vec<T>,
-    aliases: Vec<Vec<T>>,
+    alternatives: Vec<Vec<T>>,
 }
 
 impl EnumInfo {
-    fn idents(&self) -> CanonicalAndAliases<Ident> {
-        let (canonical, aliases): (Vec<Ident>, Vec<Vec<Ident>>) = self
+    fn idents(&self) -> CanonicalAndAlternatives<Ident> {
+        let (canonical, alternatives): (Vec<Ident>, Vec<Vec<Ident>>) = self
             .variant_infos
             .iter()
             .map(|info| {
                 let canonical_ident = info.ident.clone();
-                let alias_idents = (0..info.alias_values.len())
+                let alternative_idents = (0..info.alternative_values.len())
                     .map(|index| format_ident!("{}_{}", info.ident, index + 1))
                     .collect();
-                (canonical_ident, alias_idents)
+                (canonical_ident, alternative_idents)
             })
             .unzip();
 
-        CanonicalAndAliases { canonical, aliases }
+        CanonicalAndAlternatives { canonical, alternatives }
     }
 
-    fn expressions(&self) -> CanonicalAndAliases<Expr> {
-        let (canonical, aliases): (Vec<Expr>, Vec<Vec<Expr>>) = self
+    fn expressions(&self) -> CanonicalAndAlternatives<Expr> {
+        let (canonical, alternatives): (Vec<Expr>, Vec<Vec<Expr>>) = self
             .variant_infos
             .iter()
-            .map(|info| (info.canonical_value.clone(), info.alias_values.clone()))
+            .map(|info| (info.canonical_value.clone(), info.alternative_values.clone()))
             .unzip();
 
-        CanonicalAndAliases { canonical, aliases }
+        CanonicalAndAlternatives { canonical, alternatives }
     }
 }
 
@@ -181,7 +181,7 @@ impl Parse for EnumInfo {
                     next_discriminant.clone()
                 };
 
-                let alias_values: Vec<Expr> = variant
+                let alternative_values: Vec<Expr> = variant
                     .attrs
                     .iter()
                     .filter_map(|attribute| {
@@ -190,8 +190,8 @@ impl Parse for EnumInfo {
                                 default_variant = Some(ident.clone());
                                 None
                             }
-                            Ok(NumEnumVariantAttributes::Aliases(aliases)) => {
-                                Some(aliases.expressions.into_iter())
+                            Ok(NumEnumVariantAttributes::Alternatives(alternatives)) => {
+                                Some(alternatives.expressions.into_iter())
                             }
                             Err(_) => None,
                         }
@@ -202,7 +202,7 @@ impl Parse for EnumInfo {
                 let info = VariantInfo {
                     ident,
                     canonical_value,
-                    alias_values,
+                    alternative_values,
                 };
                 next_discriminant = parse_quote! {
                     #repr::wrapping_add(#variant_ident, 1)
@@ -291,17 +291,17 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
 
     // panic!("{:#?}", enum_info);
 
-    let CanonicalAndAliases {
+    let CanonicalAndAlternatives {
         canonical: canonical_idents,
-        aliases: alias_idents,
+        alternatives: alternative_idents,
     } = enum_info.idents();
-    let CanonicalAndAliases {
+    let CanonicalAndAlternatives {
         canonical: canonical_expressions,
-        aliases: alias_expressions,
+        alternatives: alternative_expressions,
     } = enum_info.expressions();
 
     debug_assert_eq!(canonical_idents.len(), canonical_expressions.len());
-    debug_assert_eq!(alias_idents.len(), alias_expressions.len());
+    debug_assert_eq!(alternative_idents.len(), alternative_expressions.len());
 
     let EnumInfo {
         name,
@@ -318,8 +318,6 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
             type Primitive = #repr;
 
             fn from_primitive(number: Self::Primitive) -> Self {
-                // unimplemented!()
-
                 // Use intermediate const(s) so that enums defined like
                 // `Two = ONE + 1u8` work properly.
                 #![allow(non_upper_case_globals)]
@@ -328,14 +326,14 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
                         #canonical_expressions
                     ;
                     #(
-                        const #alias_idents: #repr =
-                            #alias_expressions
+                        const #alternative_idents: #repr =
+                            #alternative_expressions
                         ;
                     )*
                 )*
                 match number {
                     #(
-                        | #canonical_idents #(| #alias_idents )* => Self::#canonical_idents,
+                        | #canonical_idents #(| #alternative_idents )* => Self::#canonical_idents,
                     )*
                     | _ => Self::#default_ident,
                 }
@@ -404,17 +402,17 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
     let enum_info: EnumInfo = parse_macro_input!(input);
     let krate = Ident::new(&get_crate_name(), Span::call_site());
 
-    let CanonicalAndAliases {
+    let CanonicalAndAlternatives {
         canonical: canonical_idents,
-        aliases: alias_idents,
+        alternatives: alternative_idents,
     } = enum_info.idents();
-    let CanonicalAndAliases {
+    let CanonicalAndAlternatives {
         canonical: canonical_expressions,
-        aliases: alias_expressions,
+        alternatives: alternative_expressions,
     } = enum_info.expressions();
 
     debug_assert_eq!(canonical_idents.len(), canonical_expressions.len());
-    debug_assert_eq!(alias_idents.len(), alias_expressions.len());
+    debug_assert_eq!(alternative_idents.len(), alternative_expressions.len());
 
     let EnumInfo {
         name,
@@ -461,14 +459,14 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
                         #canonical_expressions
                     ;
                     #(
-                        const #alias_idents: #repr =
-                            #alias_expressions
+                        const #alternative_idents: #repr =
+                            #alternative_expressions
                         ;
                     )*
                 )*
                 match number {
                     #(
-                        | #canonical_idents #(| #alias_idents )* => ::core::result::Result::Ok(
+                        | #canonical_idents #(| #alternative_idents )* => ::core::result::Result::Ok(
                             Self::#canonical_idents
                         ),
                     )*
@@ -565,9 +563,9 @@ pub fn derive_unsafe_from_primitive(stream: TokenStream) -> TokenStream {
 
     if variant_infos
         .iter()
-        .any(|info| !info.alias_values.is_empty())
+        .any(|info| !info.alternative_values.is_empty())
     {
-        panic!("#[derive(UnsafeFromPrimitive)] does not support `#[num_enum(aliases = [..])]`");
+        panic!("#[derive(UnsafeFromPrimitive)] does not support `#[num_enum(alternatives = [..])]`");
     }
 
     let doc_string = LitStr::new(

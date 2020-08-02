@@ -253,12 +253,12 @@ fn error_variant_is_allowed() {
 }
 
 #[test]
-fn alias_values() {
+fn alternative_values() {
     #[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
     #[repr(u8)]
     enum Enum {
         Zero = 0,
-        #[num_enum(aliases = [2, 3])]
+        #[num_enum(alternatives = [2, 3])]
         OneTwoOrThree = 1,
     }
 
@@ -306,14 +306,14 @@ fn default_value() {
 }
 
 #[test]
-fn alias_values_and_default_value() {
+fn alternative_values_and_default_value() {
     #[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
     #[repr(u8)]
     enum Enum {
         #[num_enum(default)]
         Zero = 0,
         One = 1,
-        #[num_enum(aliases = [3])]
+        #[num_enum(alternatives = [3])]
         TwoOrThree = 2,
     }
 

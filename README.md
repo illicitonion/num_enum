@@ -55,12 +55,12 @@ fn main() {
 }
 ```
 
-Variant aliases
+Variant alternatives
 ---------------
 
 Sometimes a single enum variant might be representable by multiple numeric values.
 
-The `#[num_enum(aliases = [..])]` attribute allows you to define additional value aliases for individual variants.
+The `#[num_enum(alternatives = [..])]` attribute allows you to define additional value alternatives for individual variants.
 
 (The behavior of `IntoPrimitive` is unaffected by this attribute, it will always return the canonical value.)
 
@@ -72,7 +72,7 @@ use std::convert::TryFrom;
 #[repr(u8)]
 enum Number {
     Zero = 0,
-    #[num_enum(aliases = [2])]
+    #[num_enum(alternatives = [2])]
     OneOrTwo = 1,
 }
 
@@ -140,7 +140,7 @@ use num_enum::FromPrimitive;
 #[repr(u8)]
 enum Number {
     Zero,
-    [#num_enum(default)]
+    #[num_enum(default)]
     NonZero,
 }
 
@@ -159,7 +159,7 @@ fn main() {
 Unsafely turning a primitive into an enum with from_unchecked
 -------------------------------------------------------------
 
-If you're really certain a conversion will succeed (and have not made use of `#[num_enum(default)]` or `#[num_enum(aliases = [..])]`)
+If you're really certain a conversion will succeed (and have not made use of `#[num_enum(default)]` or `#[num_enum(alternatives = [..])]`)
 for any of its variants, and want to avoid a small amount of overhead, you can use unsafe code to do this conversion.
 Unless you have data showing that the match statement generated in the `try_from` above is a bottleneck for you,
 you should avoid doing this, as the unsafe code has potential to cause serious memory issues in your program.

@@ -3,7 +3,6 @@ extern crate proc_macro;
 use ::proc_macro::TokenStream;
 use ::proc_macro2::Span;
 use ::quote::{format_ident, quote};
-use ::std::iter::FromIterator;
 use ::syn::{
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote, Data, DeriveInput, Error, Expr, Ident, LitInt, LitStr, Meta,
@@ -36,12 +35,24 @@ mod kw {
     syn::custom_keyword!(alternatives);
 }
 
-enum NumEnumVariantAttributes {
+struct NumEnumVariantAttributes {
+    items: syn::punctuated::Punctuated<NumEnumVariantAttributeItem, syn::Token![,]>,
+}
+
+impl Parse for NumEnumVariantAttributes {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        Ok(Self {
+            items: input.parse_terminated(NumEnumVariantAttributeItem::parse)?,
+        })
+    }
+}
+
+enum NumEnumVariantAttributeItem {
     Default,
     Alternatives(VariantAlternativesAttribute),
 }
 
-impl Parse for NumEnumVariantAttributes {
+impl Parse for NumEnumVariantAttributeItem {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(kw::default) {
@@ -170,9 +181,10 @@ impl Parse for EnumInfo {
             };
 
             let mut default_variant: Option<Ident> = None;
+            let mut variant_infos: Vec<VariantInfo> = vec![];
 
             let mut next_discriminant = literal(0);
-            let variant_infos = Vec::from_iter(data.variants.into_iter().map(|variant| {
+            for variant in data.variants.into_iter() {
                 let ident = variant.ident;
                 let variant_ident = ident.clone();
                 let canonical_value = if let Some(d) = variant.discriminant {
@@ -181,37 +193,48 @@ impl Parse for EnumInfo {
                     next_discriminant.clone()
                 };
 
-                let alternative_values: Vec<Expr> = variant
-                    .attrs
-                    .iter()
-                    .filter_map(|attribute| {
-                        match attribute.parse_args_with(NumEnumVariantAttributes::parse) {
-                            Ok(NumEnumVariantAttributes::Default) => {
-                                if default_variant.is_some() {
-                                    panic!("Multiple variants marked `#[num_enum(default)]` found");
-                                }
-                                default_variant = Some(ident.clone());
-                                None
-                            }
-                            Ok(NumEnumVariantAttributes::Alternatives(alternatives)) => {
-                                Some(alternatives.expressions.into_iter())
-                            }
-                            Err(_) => None,
-                        }
-                    })
-                    .flatten()
-                    .collect();
+                let mut alternative_values: Vec<Expr> = vec![];
 
-                let info = VariantInfo {
-                    ident,
-                    canonical_value,
-                    alternative_values,
-                };
+                for attribute in variant.attrs {
+                    if !attribute.path.is_ident("num_enum") {
+                        continue;
+                    }
+                    match attribute.parse_args_with(NumEnumVariantAttributes::parse) {
+                        Ok(variant_attributes) => {
+                            for variant_attribute in variant_attributes.items.iter() {
+                                match variant_attribute {
+                                    NumEnumVariantAttributeItem::Default => {
+                                        if default_variant.is_some() {
+                                            die!(ident.span()=>
+                                                "Multiple variants marked `#[num_enum(default)]` found"
+                                            );
+                                        }
+                                        default_variant = Some(ident.clone());
+                                    }
+                                    NumEnumVariantAttributeItem::Alternatives(alternatives) => {
+                                        alternative_values.extend(alternatives.expressions.iter().cloned())
+                                    }
+                                }
+                            }
+                        },
+                        Err(err) => {
+                            die!(ident.span()=>
+                                format!("Invalid attribute: {}", err)
+                            );
+                        },
+                    }
+                }
+
                 next_discriminant = parse_quote! {
                     #repr::wrapping_add(#variant_ident, 1)
                 };
-                info
-            }));
+
+                variant_infos.push(VariantInfo {
+                    ident,
+                    canonical_value,
+                    alternative_values,
+                });
+            }
 
             EnumInfo {
                 name,
@@ -507,7 +530,7 @@ fn get_crate_name() -> String {
     })
 }
 
-// Don't depend on proc-macro-crate in no_std environments because it causes an awkward depndency
+// Don't depend on proc-macro-crate in no_std environments because it causes an awkward dependency
 // on serde with std.
 //
 // no_std dependees on num_enum cannot rename the num_enum crate when they depend on it. Sorry.

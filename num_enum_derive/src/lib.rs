@@ -117,17 +117,28 @@ impl EnumInfo {
             })
             .unzip();
 
-        CanonicalAndAlternatives { canonical, alternatives }
+        CanonicalAndAlternatives {
+            canonical,
+            alternatives,
+        }
     }
 
     fn expressions(&self) -> CanonicalAndAlternatives<Expr> {
         let (canonical, alternatives): (Vec<Expr>, Vec<Vec<Expr>>) = self
             .variant_infos
             .iter()
-            .map(|info| (info.canonical_value.clone(), info.alternative_values.clone()))
+            .map(|info| {
+                (
+                    info.canonical_value.clone(),
+                    info.alternative_values.clone(),
+                )
+            })
             .unzip();
 
-        CanonicalAndAlternatives { canonical, alternatives }
+        CanonicalAndAlternatives {
+            canonical,
+            alternatives,
+        }
     }
 }
 
@@ -212,16 +223,17 @@ impl Parse for EnumInfo {
                                         default_variant = Some(ident.clone());
                                     }
                                     NumEnumVariantAttributeItem::Alternatives(alternatives) => {
-                                        alternative_values.extend(alternatives.expressions.iter().cloned())
+                                        alternative_values
+                                            .extend(alternatives.expressions.iter().cloned())
                                     }
                                 }
                             }
-                        },
+                        }
                         Err(err) => {
                             die!(ident.span()=>
                                 format!("Invalid attribute: {}", err)
                             );
-                        },
+                        }
                     }
                 }
 
@@ -595,7 +607,9 @@ pub fn derive_unsafe_from_primitive(stream: TokenStream) -> TokenStream {
         .iter()
         .any(|info| !info.alternative_values.is_empty())
     {
-        panic!("#[derive(UnsafeFromPrimitive)] does not support `#[num_enum(alternatives = [..])]`");
+        panic!(
+            "#[derive(UnsafeFromPrimitive)] does not support `#[num_enum(alternatives = [..])]`"
+        );
     }
 
     let doc_string = LitStr::new(

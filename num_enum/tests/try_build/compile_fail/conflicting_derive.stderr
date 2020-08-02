@@ -1,0 +1,20 @@
+error[E0119]: conflicting implementations of trait `std::convert::TryFrom<u8>` for type `Numbers`:
+ --> $DIR/conflicting_derive.rs:1:35
+  |
+1 | #[derive(num_enum::FromPrimitive, num_enum::TryFromPrimitive)]
+  |                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: conflicting implementation in crate `core`:
+          - impl<T, U> std::convert::TryFrom<U> for T
+            where U: std::convert::Into<T>;
+  = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0119]: conflicting implementations of trait `num_enum::TryFromPrimitive` for type `Numbers`:
+ --> $DIR/conflicting_derive.rs:1:10
+  |
+1 | #[derive(num_enum::FromPrimitive, num_enum::TryFromPrimitive)]
+  |          ^^^^^^^^^^^^^^^^^^^^^^^  -------------------------- first implementation here
+  |          |
+  |          conflicting implementation for `Numbers`
+  |
+  = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)

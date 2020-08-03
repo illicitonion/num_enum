@@ -294,14 +294,13 @@ pub fn derive_into_primitive(input: TokenStream) -> TokenStream {
     })
 }
 
-/// Implements `TryFrom<Primitive>` for a `#[repr(Primitive)] enum`.
+/// Implements `From<Primitive>` for a `#[repr(Primitive)] enum`.
 ///
-/// Attempting to turn a primitive into an enum with try_from.
+/// Turning a primitive into an enum with `from`.
 /// ----------------------------------------------
 ///
 /// ```rust
-/// use num_enum::TryFromPrimitive;
-/// use std::convert::TryFrom;
+/// use num_enum::FromPrimitive;
 ///
 /// #[derive(Debug, Eq, PartialEq, FromPrimitive)]
 /// #[repr(u8)]
@@ -312,22 +311,20 @@ pub fn derive_into_primitive(input: TokenStream) -> TokenStream {
 /// }
 ///
 /// fn main() {
-///     let zero = Number::try_from(0u8);
-///     assert_eq!(zero, Ok(Number::Zero));
+///     let zero = Number::from(0u8);
+///     assert_eq!(zero, Number::Zero);
 ///
-///     let one = Number::try_from(1u8);
-///     assert_eq!(one, Ok(Number::NonZero));
+///     let one = Number::from(1u8);
+///     assert_eq!(one, Number::NonZero);
 ///
-///     let two = Number::try_from(2u8);
-///     assert_eq!(two, Ok(Number::NonZero));
+///     let two = Number::from(2u8);
+///     assert_eq!(two, Number::NonZero);
 /// }
 /// ```
 #[proc_macro_derive(FromPrimitive, attributes(num_enum))]
 pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
     let enum_info: EnumInfo = parse_macro_input!(input);
     let krate = Ident::new(&get_crate_name(), Span::call_site());
-
-    // panic!("{:#?}", enum_info);
 
     let CanonicalAndAlternatives {
         canonical: canonical_idents,
@@ -412,7 +409,7 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
 
 /// Implements `TryFrom<Primitive>` for a `#[repr(Primitive)] enum`.
 ///
-/// Attempting to turn a primitive into an enum with try_from.
+/// Attempting to turn a primitive into an enum with `try_from`.
 /// ----------------------------------------------
 ///
 /// ```rust

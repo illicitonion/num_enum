@@ -7,6 +7,7 @@ use ::syn::{
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote, Data, DeriveInput, Error, Expr, Ident, LitInt, LitStr, Meta,
     Result,
+    spanned::Spanned,
 };
 
 macro_rules! die {
@@ -48,7 +49,7 @@ impl Parse for NumEnumVariantAttributes {
 }
 
 enum NumEnumVariantAttributeItem {
-    Default,
+    Default(VariantDefaultAttribute),
     Alternatives(VariantAlternativesAttribute),
 }
 
@@ -56,8 +57,7 @@ impl Parse for NumEnumVariantAttributeItem {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(kw::default) {
-            let _: kw::default = input.parse()?;
-            Ok(Self::Default)
+            input.parse().map(Self::Default)
         } else if lookahead.peek(kw::alternatives) {
             input.parse().map(Self::Alternatives)
         } else {
@@ -66,8 +66,26 @@ impl Parse for NumEnumVariantAttributeItem {
     }
 }
 
+struct VariantDefaultAttribute {
+    keyword: kw::default,
+}
+
+impl Parse for VariantDefaultAttribute {
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok(Self {
+            keyword: input.parse()?,
+        })
+    }
+}
+
+impl Spanned for VariantDefaultAttribute {
+    fn span(&self) -> Span {
+        self.keyword.span()
+    }
+}
+
 struct VariantAlternativesAttribute {
-    _keyword: kw::alternatives,
+    keyword: kw::alternatives,
     _eq_token: syn::Token![=],
     _bracket_token: syn::token::Bracket,
     expressions: syn::punctuated::Punctuated<Expr, syn::Token![,]>,
@@ -77,7 +95,7 @@ impl Parse for VariantAlternativesAttribute {
     fn parse(input: ParseStream) -> Result<Self> {
         let content;
         Ok(Self {
-            _keyword: input.parse()?,
+            keyword: input.parse()?,
             _eq_token: input.parse()?,
             _bracket_token: syn::bracketed!(content in input),
             expressions: content.parse_terminated(Expr::parse)?,
@@ -85,8 +103,22 @@ impl Parse for VariantAlternativesAttribute {
     }
 }
 
+impl Spanned for VariantAlternativesAttribute {
+    fn span(&self) -> Span {
+        self.keyword.span()
+    }
+}
+
+#[derive(Default)]
+struct AttributeSpans {
+    default: Vec<Span>,
+    alternatives: Vec<Span>,
+}
+
 struct VariantInfo {
     ident: Ident,
+    attr_spans: AttributeSpans,
+    is_default: bool,
     canonical_value: Expr,
     alternative_values: Vec<Expr>,
 }
@@ -94,8 +126,7 @@ struct VariantInfo {
 struct EnumInfo {
     name: Ident,
     repr: Ident,
-    variant_infos: Vec<VariantInfo>,
-    default_variant: Option<Ident>,
+    variants: Vec<VariantInfo>,
 }
 
 struct CanonicalAndAlternatives<T> {
@@ -104,9 +135,29 @@ struct CanonicalAndAlternatives<T> {
 }
 
 impl EnumInfo {
+    fn has_default(&self) -> bool {
+        self.default().is_some()
+    }
+
+    fn has_alternatives(&self) -> bool {
+        self.variants.iter().any(|info| !info.alternative_values.is_empty())
+    }
+
+    fn default(&self) -> Option<&Ident> {
+        self.variants.iter().find(|info| info.is_default).map(|info| &info.ident)
+    }
+
+    fn first_default_attr_span(&self) -> Option<&Span> {
+        self.variants.iter().find_map(|info| info.attr_spans.default.first())
+    }
+
+    fn first_alternatives_attr_span(&self) -> Option<&Span> {
+        self.variants.iter().find_map(|info| info.attr_spans.alternatives.first())
+    }
+
     fn idents(&self) -> CanonicalAndAlternatives<Ident> {
         let (canonical, alternatives): (Vec<Ident>, Vec<Vec<Ident>>) = self
-            .variant_infos
+            .variants
             .iter()
             .map(|info| {
                 let canonical_ident = info.ident.clone();
@@ -125,7 +176,7 @@ impl EnumInfo {
 
     fn expressions(&self) -> CanonicalAndAlternatives<Expr> {
         let (canonical, alternatives): (Vec<Expr>, Vec<Vec<Expr>>) = self
-            .variant_infos
+            .variants
             .iter()
             .map(|info| {
                 (
@@ -191,20 +242,21 @@ impl Parse for EnumInfo {
                 }
             };
 
-            let mut default_variant: Option<Ident> = None;
-            let mut variant_infos: Vec<VariantInfo> = vec![];
+            let mut variants: Vec<VariantInfo> = vec![];
+            let mut has_default: bool = false;
 
             let mut next_discriminant = literal(0);
             for variant in data.variants.into_iter() {
                 let ident = variant.ident;
                 let variant_ident = ident.clone();
-                let canonical_value = if let Some(d) = variant.discriminant {
-                    d.1
-                } else {
-                    next_discriminant.clone()
+                let canonical_value = match variant.discriminant {
+                    Some(d) => d.1,
+                    None => next_discriminant.clone(),
                 };
 
+                let mut attr_spans: AttributeSpans = Default::default();
                 let mut alternative_values: Vec<Expr> = vec![];
+                let mut is_default: bool = false;
 
                 for attribute in variant.attrs {
                     if !attribute.path.is_ident("num_enum") {
@@ -214,15 +266,17 @@ impl Parse for EnumInfo {
                         Ok(variant_attributes) => {
                             for variant_attribute in variant_attributes.items.iter() {
                                 match variant_attribute {
-                                    NumEnumVariantAttributeItem::Default => {
-                                        if default_variant.is_some() {
-                                            die!(ident.span()=>
+                                    NumEnumVariantAttributeItem::Default(default) => {
+                                        if has_default {
+                                            die!(default.span()=>
                                                 "Multiple variants marked `#[num_enum(default)]` found"
                                             );
                                         }
-                                        default_variant = Some(ident.clone());
+                                        attr_spans.default.push(default.span());
+                                        is_default = true;
                                     }
                                     NumEnumVariantAttributeItem::Alternatives(alternatives) => {
+                                        attr_spans.alternatives.push(alternatives.span());
                                         alternative_values
                                             .extend(alternatives.expressions.iter().cloned())
                                     }
@@ -230,19 +284,23 @@ impl Parse for EnumInfo {
                             }
                         }
                         Err(err) => {
-                            die!(ident.span()=>
+                            die!(attribute.span()=>
                                 format!("Invalid attribute: {}", err)
                             );
                         }
                     }
+
+                    has_default |= is_default;
                 }
 
                 next_discriminant = parse_quote! {
                     #repr::wrapping_add(#variant_ident, 1)
                 };
 
-                variant_infos.push(VariantInfo {
+                variants.push(VariantInfo {
                     ident,
+                    attr_spans,
+                    is_default,
                     canonical_value,
                     alternative_values,
                 });
@@ -251,8 +309,7 @@ impl Parse for EnumInfo {
             EnumInfo {
                 name,
                 repr,
-                variant_infos,
-                default_variant,
+                variants,
             }
         })
     }
@@ -339,14 +396,19 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
     debug_assert_eq!(alternative_idents.len(), alternative_expressions.len());
 
     let EnumInfo {
-        name,
-        repr,
-        default_variant,
+        ref name,
+        ref repr,
         ..
     } = enum_info;
 
-    let default_ident = default_variant
-        .expect("#[derive(FromPrimitive)] requires a variant marked with `#[num_enum(default)]`");
+    let default_ident: Ident = match enum_info.default() {
+        Some(ident) => ident.clone(),
+        None => {
+            let span = Span::call_site();
+            let message = "#[derive(FromPrimitive)] requires a variant marked with `#[num_enum(default)]`";
+            return syn::Error::new(span, message).to_compile_error().into();
+        }
+    };
 
     TokenStream::from(quote! {
         impl ::#krate::FromPrimitive for #name {
@@ -452,13 +514,12 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
     debug_assert_eq!(alternative_idents.len(), alternative_expressions.len());
 
     let EnumInfo {
-        name,
-        repr,
-        default_variant,
+        ref name,
+        ref repr,
         ..
     } = enum_info;
 
-    let default_arm = match default_variant {
+    let default_arm = match enum_info.default() {
         Some(ident) => {
             quote! {
                 ::core::result::Result::Ok(
@@ -588,25 +649,24 @@ fn get_crate_name() -> String {
 /// ```
 #[proc_macro_derive(UnsafeFromPrimitive, attributes(num_enum))]
 pub fn derive_unsafe_from_primitive(stream: TokenStream) -> TokenStream {
-    let EnumInfo {
-        name,
-        repr,
-        variant_infos,
-        default_variant,
-        ..
-    } = parse_macro_input!(stream as EnumInfo);
+    let enum_info = parse_macro_input!(stream as EnumInfo);
 
-    if default_variant.is_some() {
-        panic!("#[derive(UnsafeFromPrimitive)] does not support `#[num_enum(default)]`");
+    let EnumInfo {
+        ref name,
+        ref repr,
+        ..
+    } = enum_info;
+
+    if enum_info.has_default() {
+        let span = enum_info.first_default_attr_span().cloned().expect("Expected span");
+        let message = "#[derive(UnsafeFromPrimitive)] does not support `#[num_enum(default)]`";
+        return syn::Error::new(span, message).to_compile_error().into();
     }
 
-    if variant_infos
-        .iter()
-        .any(|info| !info.alternative_values.is_empty())
-    {
-        panic!(
-            "#[derive(UnsafeFromPrimitive)] does not support `#[num_enum(alternatives = [..])]`"
-        );
+    if enum_info.has_alternatives() {
+        let span = enum_info.first_alternatives_attr_span().cloned().expect("Expected span");
+        let message = "#[derive(UnsafeFromPrimitive)] does not support `#[num_enum(alternatives = [..])]`";
+        return syn::Error::new(span, message).to_compile_error().into();
     }
 
     let doc_string = LitStr::new(

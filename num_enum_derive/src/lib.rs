@@ -161,8 +161,8 @@ impl EnumInfo {
             .iter()
             .map(|info| {
                 let canonical_ident = info.ident.clone();
-                let alternative_idents = (0..info.alternative_values.len())
-                    .map(|index| format_ident!("{}_{}", info.ident, index + 1))
+                let alternative_idents = (1..=info.alternative_values.len())
+                    .map(|index| format_ident!("{}__num_enum_{}__", info.ident, index))
                     .collect();
                 (canonical_ident, alternative_idents)
             })

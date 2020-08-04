@@ -5,9 +5,9 @@ use ::proc_macro2::Span;
 use ::quote::{format_ident, quote};
 use ::syn::{
     parse::{Parse, ParseStream},
-    parse_macro_input, parse_quote, Data, DeriveInput, Error, Expr, Ident, LitInt, LitStr, Meta,
-    Result,
+    parse_macro_input, parse_quote,
     spanned::Spanned,
+    Data, DeriveInput, Error, Expr, Ident, LitInt, LitStr, Meta, Result,
 };
 
 macro_rules! die {
@@ -119,8 +119,15 @@ struct VariantInfo {
     ident: Ident,
     attr_spans: AttributeSpans,
     is_default: bool,
+    is_complex: bool,
     canonical_value: Expr,
     alternative_values: Vec<Expr>,
+}
+
+impl VariantInfo {
+    fn all_values(&self) -> impl Iterator<Item = &Expr> {
+        ::core::iter::once(&self.canonical_value).chain(self.alternative_values.iter())
+    }
 }
 
 struct EnumInfo {
@@ -129,67 +136,58 @@ struct EnumInfo {
     variants: Vec<VariantInfo>,
 }
 
-struct CanonicalAndAlternatives<T> {
-    canonical: Vec<T>,
-    alternatives: Vec<Vec<T>>,
-}
-
 impl EnumInfo {
-    fn has_default(&self) -> bool {
+    fn has_default_variant(&self) -> bool {
         self.default().is_some()
     }
 
-    fn has_alternatives(&self) -> bool {
-        self.variants.iter().any(|info| !info.alternative_values.is_empty())
+    fn has_complex_variant(&self) -> bool {
+        self.variants.iter().any(|info| info.is_complex)
     }
 
     fn default(&self) -> Option<&Ident> {
-        self.variants.iter().find(|info| info.is_default).map(|info| &info.ident)
+        self.variants
+            .iter()
+            .find(|info| info.is_default)
+            .map(|info| &info.ident)
     }
 
     fn first_default_attr_span(&self) -> Option<&Span> {
-        self.variants.iter().find_map(|info| info.attr_spans.default.first())
+        self.variants
+            .iter()
+            .find_map(|info| info.attr_spans.default.first())
     }
 
     fn first_alternatives_attr_span(&self) -> Option<&Span> {
-        self.variants.iter().find_map(|info| info.attr_spans.alternatives.first())
+        self.variants
+            .iter()
+            .find_map(|info| info.attr_spans.alternatives.first())
     }
 
-    fn idents(&self) -> CanonicalAndAlternatives<Ident> {
-        let (canonical, alternatives): (Vec<Ident>, Vec<Vec<Ident>>) = self
-            .variants
+    fn variant_idents(&self) -> Vec<Ident> {
+        self.variants
+            .iter()
+            .map(|variant| variant.ident.clone())
+            .collect()
+    }
+
+    fn expression_idents(&self) -> Vec<Vec<Ident>> {
+        self.variants
             .iter()
             .map(|info| {
-                let canonical_ident = info.ident.clone();
-                let alternative_idents = (1..=info.alternative_values.len())
+                let indices = 0..(info.alternative_values.len() + 1);
+                indices
                     .map(|index| format_ident!("{}__num_enum_{}__", info.ident, index))
-                    .collect();
-                (canonical_ident, alternative_idents)
+                    .collect()
             })
-            .unzip();
-
-        CanonicalAndAlternatives {
-            canonical,
-            alternatives,
-        }
+            .collect()
     }
 
-    fn expressions(&self) -> CanonicalAndAlternatives<Expr> {
-        let (canonical, alternatives): (Vec<Expr>, Vec<Vec<Expr>>) = self
-            .variants
+    fn variant_expressions(&self) -> Vec<Vec<Expr>> {
+        self.variants
             .iter()
-            .map(|info| {
-                (
-                    info.canonical_value.clone(),
-                    info.alternative_values.clone(),
-                )
-            })
-            .unzip();
-
-        CanonicalAndAlternatives {
-            canonical,
-            alternatives,
-        }
+            .map(|variant| variant.all_values().cloned().collect())
+            .collect()
     }
 }
 
@@ -243,19 +241,23 @@ impl Parse for EnumInfo {
             };
 
             let mut variants: Vec<VariantInfo> = vec![];
-            let mut has_default: bool = false;
+            let mut has_default_variant: bool = false;
 
             let mut next_discriminant = literal(0);
             for variant in data.variants.into_iter() {
                 let ident = variant.ident;
-                let variant_ident = ident.clone();
-                let canonical_value = match variant.discriminant {
+
+                let discriminant = match variant.discriminant {
                     Some(d) => d.1,
                     None => next_discriminant.clone(),
                 };
 
                 let mut attr_spans: AttributeSpans = Default::default();
                 let mut alternative_values: Vec<Expr> = vec![];
+
+                // `#[num_enum(default)]` is required by `#[derive(FromPrimitive)]`
+                // and forbidden by `#[derive(UsafeFromPrimitive)]`, so we need to
+                // keep track of whether we encountered such an attribute:
                 let mut is_default: bool = false;
 
                 for attribute in variant.attrs {
@@ -267,7 +269,7 @@ impl Parse for EnumInfo {
                             for variant_attribute in variant_attributes.items.iter() {
                                 match variant_attribute {
                                     NumEnumVariantAttributeItem::Default(default) => {
-                                        if has_default {
+                                        if has_default_variant {
                                             die!(default.span()=>
                                                 "Multiple variants marked `#[num_enum(default)]` found"
                                             );
@@ -278,7 +280,7 @@ impl Parse for EnumInfo {
                                     NumEnumVariantAttributeItem::Alternatives(alternatives) => {
                                         attr_spans.alternatives.push(alternatives.span());
                                         alternative_values
-                                            .extend(alternatives.expressions.iter().cloned())
+                                            .extend(alternatives.expressions.iter().cloned());
                                     }
                                 }
                             }
@@ -290,20 +292,25 @@ impl Parse for EnumInfo {
                         }
                     }
 
-                    has_default |= is_default;
+                    has_default_variant |= is_default;
                 }
 
-                next_discriminant = parse_quote! {
-                    #repr::wrapping_add(#variant_ident, 1)
-                };
+                let is_complex = !alternative_values.is_empty();
+
+                let canonical_value = discriminant.clone();
 
                 variants.push(VariantInfo {
                     ident,
                     attr_spans,
                     is_default,
+                    is_complex,
                     canonical_value,
                     alternative_values,
                 });
+
+                next_discriminant = parse_quote! {
+                    #repr::wrapping_add(#discriminant, 1)
+                };
             }
 
             EnumInfo {
@@ -383,58 +390,47 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
     let enum_info: EnumInfo = parse_macro_input!(input);
     let krate = Ident::new(&get_crate_name(), Span::call_site());
 
-    let CanonicalAndAlternatives {
-        canonical: canonical_idents,
-        alternatives: alternative_idents,
-    } = enum_info.idents();
-    let CanonicalAndAlternatives {
-        canonical: canonical_expressions,
-        alternatives: alternative_expressions,
-    } = enum_info.expressions();
-
-    debug_assert_eq!(canonical_idents.len(), canonical_expressions.len());
-    debug_assert_eq!(alternative_idents.len(), alternative_expressions.len());
-
-    let EnumInfo {
-        ref name,
-        ref repr,
-        ..
-    } = enum_info;
-
     let default_ident: Ident = match enum_info.default() {
         Some(ident) => ident.clone(),
         None => {
             let span = Span::call_site();
-            let message = "#[derive(FromPrimitive)] requires a variant marked with `#[num_enum(default)]`";
+            let message =
+                "#[derive(FromPrimitive)] requires a variant marked with `#[num_enum(default)]`";
             return syn::Error::new(span, message).to_compile_error().into();
         }
     };
+
+    let EnumInfo {
+        ref name, ref repr, ..
+    } = enum_info;
+
+    let variant_idents: Vec<Ident> = enum_info.variant_idents();
+    let expression_idents: Vec<Vec<Ident>> = enum_info.expression_idents();
+    let variant_expressions: Vec<Vec<Expr>> = enum_info.variant_expressions();
+
+    debug_assert_eq!(variant_idents.len(), variant_expressions.len());
 
     TokenStream::from(quote! {
         impl ::#krate::FromPrimitive for #name {
             type Primitive = #repr;
 
             fn from_primitive(number: Self::Primitive) -> Self {
-                #![deny(unreachable_patterns)]
-
                 // Use intermediate const(s) so that enums defined like
                 // `Two = ONE + 1u8` work properly.
                 #![allow(non_upper_case_globals)]
                 #(
-                    const #canonical_idents: #repr =
-                        #canonical_expressions
-                    ;
                     #(
-                        const #alternative_idents: #repr =
-                            #alternative_expressions
-                        ;
+                        const #expression_idents: #repr = #variant_expressions;
                     )*
                 )*
+                #[deny(unreachable_patterns)]
                 match number {
                     #(
-                        | #canonical_idents #(| #alternative_idents )* => Self::#canonical_idents,
+                        #( #expression_idents )|*
+                        => Self::#variant_idents,
                     )*
-                    | _ => Self::#default_ident,
+                    #[allow(unreachable_patterns)]
+                    _ => Self::#default_ident,
                 }
             }
         }
@@ -501,35 +497,27 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
     let enum_info: EnumInfo = parse_macro_input!(input);
     let krate = Ident::new(&get_crate_name(), Span::call_site());
 
-    let CanonicalAndAlternatives {
-        canonical: canonical_idents,
-        alternatives: alternative_idents,
-    } = enum_info.idents();
-    let CanonicalAndAlternatives {
-        canonical: canonical_expressions,
-        alternatives: alternative_expressions,
-    } = enum_info.expressions();
-
-    debug_assert_eq!(canonical_idents.len(), canonical_expressions.len());
-    debug_assert_eq!(alternative_idents.len(), alternative_expressions.len());
-
     let EnumInfo {
-        ref name,
-        ref repr,
-        ..
+        ref name, ref repr, ..
     } = enum_info;
+
+    let variant_idents: Vec<Ident> = enum_info.variant_idents();
+    let expression_idents: Vec<Vec<Ident>> = enum_info.expression_idents();
+    let variant_expressions: Vec<Vec<Expr>> = enum_info.variant_expressions();
+
+    debug_assert_eq!(variant_idents.len(), variant_expressions.len());
 
     let default_arm = match enum_info.default() {
         Some(ident) => {
             quote! {
-                ::core::result::Result::Ok(
+                _ => ::core::result::Result::Ok(
                     #name::#ident
                 )
             }
         }
         None => {
             quote! {
-                ::core::result::Result::Err(
+                _ => ::core::result::Result::Err(
                     ::#krate::TryFromPrimitiveError { number }
                 )
             }
@@ -546,31 +534,24 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
                 number: Self::Primitive,
             ) -> ::core::result::Result<
                 Self,
-                ::#krate::TryFromPrimitiveError<Self>,
-            >
-            {
-                #![deny(unreachable_patterns)]
-
+                ::#krate::TryFromPrimitiveError<Self>
+            > {
                 // Use intermediate const(s) so that enums defined like
                 // `Two = ONE + 1u8` work properly.
                 #![allow(non_upper_case_globals)]
                 #(
-                    const #canonical_idents: #repr =
-                        #canonical_expressions
-                    ;
                     #(
-                        const #alternative_idents: #repr =
-                            #alternative_expressions
-                        ;
+                        const #expression_idents: #repr = #variant_expressions;
                     )*
                 )*
+                #[deny(unreachable_patterns)]
                 match number {
                     #(
-                        | #canonical_idents #(| #alternative_idents )* => ::core::result::Result::Ok(
-                            Self::#canonical_idents
-                        ),
+                        #( #expression_idents )|*
+                        => ::core::result::Result::Ok(Self::#variant_idents),
                     )*
-                    | _ => #default_arm,
+                    #[allow(unreachable_patterns)]
+                    #default_arm,
                 }
             }
         }
@@ -581,10 +562,7 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
             #[inline]
             fn try_from (
                 number: #repr,
-            ) -> ::core::result::Result<
-                    Self,
-                    ::#krate::TryFromPrimitiveError<Self>,
-                >
+            ) -> ::core::result::Result<Self, ::#krate::TryFromPrimitiveError<Self>>
             {
                 ::#krate::TryFromPrimitive::try_from_primitive(number)
             }
@@ -651,23 +629,28 @@ fn get_crate_name() -> String {
 pub fn derive_unsafe_from_primitive(stream: TokenStream) -> TokenStream {
     let enum_info = parse_macro_input!(stream as EnumInfo);
 
-    let EnumInfo {
-        ref name,
-        ref repr,
-        ..
-    } = enum_info;
-
-    if enum_info.has_default() {
-        let span = enum_info.first_default_attr_span().cloned().expect("Expected span");
+    if enum_info.has_default_variant() {
+        let span = enum_info
+            .first_default_attr_span()
+            .cloned()
+            .expect("Expected span");
         let message = "#[derive(UnsafeFromPrimitive)] does not support `#[num_enum(default)]`";
         return syn::Error::new(span, message).to_compile_error().into();
     }
 
-    if enum_info.has_alternatives() {
-        let span = enum_info.first_alternatives_attr_span().cloned().expect("Expected span");
-        let message = "#[derive(UnsafeFromPrimitive)] does not support `#[num_enum(alternatives = [..])]`";
+    if enum_info.has_complex_variant() {
+        let span = enum_info
+            .first_alternatives_attr_span()
+            .cloned()
+            .expect("Expected span");
+        let message =
+            "#[derive(UnsafeFromPrimitive)] does not support `#[num_enum(alternatives = [..])]`";
         return syn::Error::new(span, message).to_compile_error().into();
     }
+
+    let EnumInfo {
+        ref name, ref repr, ..
+    } = enum_info;
 
     let doc_string = LitStr::new(
         &format!(
@@ -688,9 +671,7 @@ Transmutes `number: {repr}` into a [`{name}`].
         impl #name {
             #[doc = #doc_string]
             #[inline]
-            pub
-            unsafe
-            fn from_unchecked(number: #repr) -> Self {
+            pub unsafe fn from_unchecked(number: #repr) -> Self {
                 ::core::mem::transmute(number)
             }
         }

@@ -1,0 +1,7 @@
+error: #[derive(FromPrimitive)] requires a variant marked with `#[num_enum(default)]`
+ --> $DIR/exhaustive_enum.rs:1:10
+  |
+1 | #[derive(num_enum::FromPrimitive)]
+  |          ^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)

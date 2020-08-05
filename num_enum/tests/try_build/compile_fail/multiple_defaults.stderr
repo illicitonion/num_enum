@@ -1,0 +1,5 @@
+error: Multiple variants marked `#[num_enum(default)]` found
+ --> $DIR/multiple_defaults.rs:7:16
+  |
+7 |     #[num_enum(default)]
+  |                ^^^^^^^

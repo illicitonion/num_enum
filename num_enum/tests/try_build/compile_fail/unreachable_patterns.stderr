@@ -1,0 +1,12 @@
+error: unreachable pattern
+ --> $DIR/unreachable_patterns.rs:7:5
+  |
+7 |     Two = 2,
+  |     ^^^
+  |
+note: the lint level is defined here
+ --> $DIR/unreachable_patterns.rs:1:10
+  |
+1 | #[derive(num_enum::TryFromPrimitive)]
+  |          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -119,7 +119,6 @@ struct VariantInfo {
     ident: Ident,
     attr_spans: AttributeSpans,
     is_default: bool,
-    is_complex: bool,
     canonical_value: Expr,
     alternative_values: Vec<Expr>,
 }
@@ -127,6 +126,10 @@ struct VariantInfo {
 impl VariantInfo {
     fn all_values(&self) -> impl Iterator<Item = &Expr> {
         ::core::iter::once(&self.canonical_value).chain(self.alternative_values.iter())
+    }
+
+    fn is_complex(&self) -> bool {
+        !self.alternative_values.is_empty()
     }
 }
 
@@ -142,7 +145,7 @@ impl EnumInfo {
     }
 
     fn has_complex_variant(&self) -> bool {
-        self.variants.iter().any(|info| info.is_complex)
+        self.variants.iter().any(|info| info.is_complex())
     }
 
     fn default(&self) -> Option<&Ident> {
@@ -295,15 +298,12 @@ impl Parse for EnumInfo {
                     has_default_variant |= is_default;
                 }
 
-                let is_complex = !alternative_values.is_empty();
-
                 let canonical_value = discriminant.clone();
 
                 variants.push(VariantInfo {
                     ident,
                     attr_spans,
                     is_default,
-                    is_complex,
                     canonical_value,
                     alternative_values,
                 });

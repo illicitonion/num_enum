@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = [
   "Daniel Wagner-Hall <dawagner@gmail.com>",
   "Daniel Henry-Mantilla <daniel.henry.mantilla@gmail.com>",
+  "Vincent Esche <regexident@gmail.com>",
 ]
 description = "Example crate using num_enum and serde. Regression test for https://github.com/illicitonion/num_enum/issues/18."
 edition = "2018"

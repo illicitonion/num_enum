@@ -159,8 +159,8 @@ fn main() {
 Unsafely turning a primitive into an enum with from_unchecked
 -------------------------------------------------------------
 
-If you're really certain a conversion will succeed (and have not made use of `#[num_enum(default)]` or `#[num_enum(alternatives = [..])]`)
-for any of its variants, and want to avoid a small amount of overhead, you can use unsafe code to do this conversion.
+If you're really certain a conversion will succeed (and have not made use of `#[num_enum(default)]` or `#[num_enum(alternatives = [..])]`
+for any of its variants), and want to avoid a small amount of overhead, you can use unsafe code to do this conversion.
 Unless you have data showing that the match statement generated in the `try_from` above is a bottleneck for you,
 you should avoid doing this, as the unsafe code has potential to cause serious memory issues in your program.
 

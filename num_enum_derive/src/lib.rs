@@ -259,7 +259,7 @@ impl Parse for EnumInfo {
                 let mut alternative_values: Vec<Expr> = vec![];
 
                 // `#[num_enum(default)]` is required by `#[derive(FromPrimitive)]`
-                // and forbidden by `#[derive(UsafeFromPrimitive)]`, so we need to
+                // and forbidden by `#[derive(UnsafeFromPrimitive)]`, so we need to
                 // keep track of whether we encountered such an attribute:
                 let mut is_default: bool = false;
 

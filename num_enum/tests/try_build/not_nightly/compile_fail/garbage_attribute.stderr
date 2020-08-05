@@ -1,5 +1,5 @@
 error: Invalid attribute: expected `default` or `alternatives`
- --> $DIR/garbage_attributes.rs:5:5
+ --> $DIR/garbage_attribute.rs:5:5
   |
 5 |     #[num_enum(garbage)]
   |     ^

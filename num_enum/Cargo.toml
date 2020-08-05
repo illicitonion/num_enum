@@ -1,9 +1,10 @@
 [package]
 name = "num_enum"
-version = "0.5.0"  # Keep in sync with num_enum_derive.
+version = "0.5.1"  # Keep in sync with num_enum_derive.
 authors = [
   "Daniel Wagner-Hall <dawagner@gmail.com>",
   "Daniel Henry-Mantilla <daniel.henry.mantilla@gmail.com>",
+  "Vincent Esche <regexident@gmail.com>",
 ]
 description = "Procedural macros to make inter-operation between primitives and enums easier."
 edition = "2018"

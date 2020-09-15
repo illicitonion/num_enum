@@ -1,6 +1,12 @@
-use std::convert::{TryFrom, TryInto};
+use ::std::convert::{TryFrom, TryInto};
 
-use num_enum::TryFromPrimitive;
+use ::num_enum::TryFromPrimitive;
+
+// Guard against https://github.com/illicitonion/num_enum/issues/27
+mod alloc {}
+mod core {}
+mod num_enum {}
+mod std {}
 
 #[test]
 fn simple() {

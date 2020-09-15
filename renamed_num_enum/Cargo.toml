@@ -8,4 +8,6 @@ publish = false
 package = "num_enum"
 path = "../num_enum"
 default-features = false
-features = ["std"]
+
+[features]
+std = ["renamed/std"]

@@ -1,4 +1,10 @@
-use num_enum::IntoPrimitive;
+use ::num_enum::IntoPrimitive;
+
+// Guard against https://github.com/illicitonion/num_enum/issues/27
+mod alloc {}
+mod core {}
+mod num_enum {}
+mod std {}
 
 #[derive(IntoPrimitive)]
 #[repr(u8)]

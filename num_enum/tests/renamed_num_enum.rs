@@ -1,36 +1,33 @@
-#![cfg_attr(rustfmt, rustfmt::skip)] // args
-
 #[test]
 fn no_std() {
-    assert!(
-        ::std::process::Command::new("cargo")
+    assert!(::std::process::Command::new("cargo")
         .args(&[
             "run",
-            "--manifest-path", concat!(
+            "--manifest-path",
+            concat!(
                 env!("CARGO_MANIFEST_DIR"),
                 "/../renamed_num_enum/Cargo.toml",
             ),
         ])
         .status()
         .unwrap()
-        .success()
-    )
+        .success())
 }
 
 #[test]
 fn std() {
-    assert!(
-        ::std::process::Command::new("cargo")
+    assert!(::std::process::Command::new("cargo")
         .args(&[
             "run",
-            "--manifest-path", concat!(
+            "--manifest-path",
+            concat!(
                 env!("CARGO_MANIFEST_DIR"),
                 "/../renamed_num_enum/Cargo.toml",
             ),
-            "--features", "std",
+            "--features",
+            "std",
         ])
         .status()
         .unwrap()
-        .success()
-    )
+        .success())
 }

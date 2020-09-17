@@ -33,5 +33,7 @@ derivative = { version = "2", features = ["use_core"] }
 num_enum_derive = { version = "0.5.1", path = "../num_enum_derive", default-features = false }
 
 [dev-dependencies]
-trybuild = "1.0.31"
+anyhow = "1"
 rustversion = "1.0"
+trybuild = "1.0.31"
+walkdir = "2.3.1"

@@ -1,4 +1,10 @@
-use num_enum::UnsafeFromPrimitive;
+use ::num_enum::UnsafeFromPrimitive;
+
+// Guard against https://github.com/illicitonion/num_enum/issues/27
+mod alloc {}
+mod core {}
+mod num_enum {}
+mod std {}
 
 #[test]
 fn has_unsafe_from_primitive_number() {

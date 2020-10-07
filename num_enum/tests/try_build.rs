@@ -14,10 +14,8 @@ fn trybuild() {
 
     let mut _renamer = None;
 
-    if NIGHTLY {
-        // Sometimes error messages change on nightly - allow alternate errors on nightly.
-        _renamer = Some(Renamer::rename(directory.join("compile_fail")).unwrap());
-    }
+    // Sometimes error messages change on beta/nightly - allow alternate errors on those.
+    _renamer = Some(Renamer::rename(directory.join("compile_fail")).unwrap());
 
     let fail = trybuild::TestCases::new();
     fail.compile_fail(directory.join("compile_fail/*.rs"));
@@ -34,8 +32,18 @@ struct Renamer(Vec<PathBuf>);
 
 impl Renamer {
     const STDERR_EXTENSION: &'static str = "stderr";
-    const NIGHTLY_EXTENSION: &'static str = "stderr_nightly";
-    const NON_NIGHTLY_BACKUP_EXTENSION: &'static str = "stderr_non_nightly_backup";
+
+    #[rustversion::all(beta)]
+    const VERSION_SPECIFIC_EXTENSION: &'static str = "stderr_nightly";
+
+    #[rustversion::all(nightly)]
+    const VERSION_SPECIFIC_EXTENSION: &'static str = "stderr_beta";
+
+    #[rustversion::all(not(beta), not(nightly))]
+    const VERSION_SPECIFIC_EXTENSION: &'static str = "stderr_doesnotexist";
+
+    const NON_VERSION_SPECIFIC_BACKUP_EXTENSION: &'static str =
+        "stderr_non_version_specific_backup";
 
     fn rename(dir: PathBuf) -> anyhow::Result<Self> {
         let nightly_paths = WalkDir::new(dir)
@@ -48,7 +56,8 @@ impl Renamer {
                 };
                 let path = dir_entry.path();
                 if let Some(file_name) = path.file_name() {
-                    if Path::new(file_name).extension() == Some(Renamer::NIGHTLY_EXTENSION.as_ref())
+                    if Path::new(file_name).extension()
+                        == Some(Renamer::VERSION_SPECIFIC_EXTENSION.as_ref())
                     {
                         return Some(Ok(path.to_path_buf()));
                     }
@@ -63,10 +72,10 @@ impl Renamer {
         for nightly_path in &renamer.0 {
             std::fs::rename(
                 nightly_path.with_extension(Renamer::STDERR_EXTENSION),
-                nightly_path.with_extension(Renamer::NON_NIGHTLY_BACKUP_EXTENSION),
+                nightly_path.with_extension(Renamer::NON_VERSION_SPECIFIC_BACKUP_EXTENSION),
             )?;
             std::fs::rename(
-                nightly_path.with_extension(Renamer::NIGHTLY_EXTENSION),
+                nightly_path.with_extension(Renamer::VERSION_SPECIFIC_EXTENSION),
                 nightly_path.with_extension(Renamer::STDERR_EXTENSION),
             )?;
         }
@@ -79,10 +88,10 @@ impl Drop for Renamer {
         for path in &self.0 {
             ignore_error(std::fs::rename(
                 path.with_extension(Renamer::STDERR_EXTENSION),
-                path.with_extension(Renamer::NIGHTLY_EXTENSION),
+                path.with_extension(Renamer::VERSION_SPECIFIC_EXTENSION),
             ));
             ignore_error(std::fs::rename(
-                path.with_extension(Renamer::NON_NIGHTLY_BACKUP_EXTENSION),
+                path.with_extension(Renamer::NON_VERSION_SPECIFIC_BACKUP_EXTENSION),
                 path.with_extension(Renamer::STDERR_EXTENSION),
             ));
         }

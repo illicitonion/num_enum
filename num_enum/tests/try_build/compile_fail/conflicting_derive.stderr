@@ -5,8 +5,8 @@ error[E0119]: conflicting implementations of trait `std::convert::TryFrom<u8>` f
   |                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
   = note: conflicting implementation in crate `core`:
-          - impl<T, U> std::convert::TryFrom<U> for T
-            where U: std::convert::Into<T>;
+          - impl<T, U> TryFrom<U> for T
+            where U: Into<T>;
   = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0119]: conflicting implementations of trait `num_enum::TryFromPrimitive` for type `Numbers`:

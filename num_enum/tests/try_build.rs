@@ -34,10 +34,10 @@ impl Renamer {
     const STDERR_EXTENSION: &'static str = "stderr";
 
     #[rustversion::all(beta)]
-    const VERSION_SPECIFIC_EXTENSION: &'static str = "stderr_nightly";
+    const VERSION_SPECIFIC_EXTENSION: &'static str = "stderr_beta";
 
     #[rustversion::all(nightly)]
-    const VERSION_SPECIFIC_EXTENSION: &'static str = "stderr_beta";
+    const VERSION_SPECIFIC_EXTENSION: &'static str = "stderr_nightly";
 
     #[rustversion::all(not(beta), not(nightly))]
     const VERSION_SPECIFIC_EXTENSION: &'static str = "stderr_doesnotexist";

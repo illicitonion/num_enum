@@ -9,6 +9,7 @@ use ::syn::{
     spanned::Spanned,
     Data, DeriveInput, Error, Expr, Ident, LitInt, LitStr, Meta, Result,
 };
+use convert_case::{Case, Casing};
 
 macro_rules! die {
     ($span:expr=>
@@ -178,9 +179,15 @@ impl EnumInfo {
         self.variants
             .iter()
             .map(|info| {
-                let indices = 0..(info.alternative_values.len() + 1);
+                let indices = 0..=(info.alternative_values.len());
                 indices
-                    .map(|index| format_ident!("{}__NUM_ENUM_{}__", info.ident, index))
+                    .map(|index| {
+                        format_ident!(
+                            "{}__NUM_ENUM_{}__",
+                            info.ident.to_string().to_case(Case::ScreamingSnake),
+                            index
+                        )
+                    })
                     .collect()
             })
             .collect()

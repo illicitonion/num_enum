@@ -180,7 +180,7 @@ impl EnumInfo {
             .map(|info| {
                 let indices = 0..(info.alternative_values.len() + 1);
                 indices
-                    .map(|index| format_ident!("{}__num_enum_{}__", info.ident, index))
+                    .map(|index| format_ident!("{}__NUM_ENUM_{}__", info.ident, index))
                     .collect()
             })
             .collect()

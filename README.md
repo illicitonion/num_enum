@@ -147,11 +147,11 @@ enum Number {
 fn main() {
     assert_eq!(
         Number::Zero,
-        unsafe { Number::from(0_u8) },
+        Number::from(0_u8),
     );
     assert_eq!(
         Number::NonZero,
-        unsafe { Number::from(1_u8) },
+        Number::from(1_u8),
     );
 }
 ```

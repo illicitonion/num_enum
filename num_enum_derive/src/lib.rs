@@ -7,7 +7,7 @@ use ::syn::{
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
     spanned::Spanned,
-    Data, DeriveInput, Error, Expr, Ident, LitInt, LitStr, Meta, Result,
+    Data, DeriveInput, Error, Expr, Fields, Ident, LitInt, LitStr, Meta, Result,
 };
 
 macro_rules! die {
@@ -248,7 +248,20 @@ impl Parse for EnumInfo {
 
             let mut next_discriminant = literal(0);
             for variant in data.variants.into_iter() {
+                let mut span = variant.span();
+                // Sadly `Span::join` is a nightly-only API at the moment - see https://github.com/rust-lang/rust/issues/54725
+                if let Some(span_with_fields) = span.join(variant.fields.span()) {
+                    span = span_with_fields;
+                }
                 let ident = variant.ident;
+                let fields = variant.fields;
+
+                match fields {
+                    Fields::Named(_) | Fields::Unnamed(_) => {
+                        die!(span => format!("Enum variants used with the `{}` crate must not contain fields, but `{}::{}` had fields.", get_crate_name(), name, ident));
+                    }
+                    Fields::Unit => {}
+                }
 
                 let discriminant = match variant.discriminant {
                     Some(d) => d.1,

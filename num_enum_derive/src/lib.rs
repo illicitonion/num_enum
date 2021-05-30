@@ -13,15 +13,15 @@ use ::syn::{
 macro_rules! die {
     ($spanned:expr=>
         $msg:expr
-    ) => (
+    ) => {
         return Err(Error::new_spanned($spanned, $msg));
-    );
+    };
 
     (
         $msg:expr
-    ) => (
+    ) => {
         return Err(Error::new(Span::call_site(), $msg));
-    );
+    };
 }
 
 fn literal(i: u64) -> Expr {

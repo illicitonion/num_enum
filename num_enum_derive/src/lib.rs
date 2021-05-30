@@ -7,21 +7,21 @@ use ::syn::{
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
     spanned::Spanned,
-    Data, DeriveInput, Error, Expr, Ident, LitInt, LitStr, Meta, Result,
+    Data, DeriveInput, Error, Expr, Fields, Ident, LitInt, LitStr, Meta, Result,
 };
 
 macro_rules! die {
-    ($span:expr=>
+    ($spanned:expr=>
         $msg:expr
-    ) => (
-        return Err(Error::new($span, $msg));
-    );
+    ) => {
+        return Err(Error::new_spanned($spanned, $msg));
+    };
 
     (
         $msg:expr
-    ) => (
-        die!(Span::call_site() => $msg)
-    );
+    ) => {
+        return Err(Error::new(Span::call_site(), $msg));
+    };
 }
 
 fn literal(i: u64) -> Expr {
@@ -199,15 +199,10 @@ impl Parse for EnumInfo {
         Ok({
             let input: DeriveInput = input.parse()?;
             let name = input.ident;
-            let data = if let Data::Enum(data) = input.data {
-                data
-            } else {
-                let span = match input.data {
-                    Data::Union(data) => data.union_token.span,
-                    Data::Struct(data) => data.struct_token.span,
-                    _ => unreachable!(),
-                };
-                die!(span => "Expected enum");
+            let data = match input.data {
+                Data::Enum(data) => data,
+                Data::Union(data) => die!(data.union_token => "Expected enum but found union"),
+                Data::Struct(data) => die!(data.struct_token => "Expected enum but found struct"),
             };
 
             let repr: Ident = {
@@ -219,7 +214,7 @@ impl Parse for EnumInfo {
                                 if ident == "repr" {
                                     let mut nested = meta_list.nested.iter();
                                     if nested.len() != 1 {
-                                        die!(ident.span()=>
+                                        die!(attr =>
                                             "Expected exactly one `repr` argument"
                                         );
                                     }
@@ -228,7 +223,7 @@ impl Parse for EnumInfo {
                                         #repr
                                     };
                                     if repr == "C" {
-                                        die!(repr.span()=>
+                                        die!(repr =>
                                             "repr(C) doesn't have a well defined size"
                                         );
                                     } else {
@@ -248,7 +243,14 @@ impl Parse for EnumInfo {
 
             let mut next_discriminant = literal(0);
             for variant in data.variants.into_iter() {
-                let ident = variant.ident;
+                let ident = variant.ident.clone();
+
+                match &variant.fields {
+                    Fields::Named(_) | Fields::Unnamed(_) => {
+                        die!(variant => format!("`{}` only supports unit variants (with no associated data), but `{}::{}` was not a unit variant.", get_crate_name(), name, ident));
+                    }
+                    Fields::Unit => {}
+                }
 
                 let discriminant = match variant.discriminant {
                     Some(d) => d.1,
@@ -273,7 +275,7 @@ impl Parse for EnumInfo {
                                 match variant_attribute {
                                     NumEnumVariantAttributeItem::Default(default) => {
                                         if has_default_variant {
-                                            die!(default.span()=>
+                                            die!(default.keyword =>
                                                 "Multiple variants marked `#[num_enum(default)]` found"
                                             );
                                         }
@@ -289,7 +291,7 @@ impl Parse for EnumInfo {
                             }
                         }
                         Err(err) => {
-                            die!(attribute.span()=>
+                            die!(attribute =>
                                 format!("Invalid attribute: {}", err)
                             );
                         }

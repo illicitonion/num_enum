@@ -581,7 +581,7 @@ fn get_crate_name() -> String {
 
     let crate_name = match found_crate {
         proc_macro_crate::FoundCrate::Itself => String::from("num_enum"),
-        proc_macro_crate::FoundCrate::Name(name) => name
+        proc_macro_crate::FoundCrate::Name(name) => name,
     };
 
     crate_name

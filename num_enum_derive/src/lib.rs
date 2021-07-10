@@ -574,10 +574,17 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
 
 #[cfg(feature = "proc-macro-crate")]
 fn get_crate_name() -> String {
-    ::proc_macro_crate::crate_name("num_enum").unwrap_or_else(|err| {
+    let found_crate = proc_macro_crate::crate_name("num_enum").unwrap_or_else(|err| {
         eprintln!("Warning: {}\n    => defaulting to `num_enum`", err,);
-        String::from("num_enum")
-    })
+        proc_macro_crate::FoundCrate::Itself
+    });
+
+    let crate_name = match found_crate {
+        proc_macro_crate::FoundCrate::Itself => String::from("num_enum"),
+        proc_macro_crate::FoundCrate::Name(name) => name
+    };
+
+    crate_name
 }
 
 // Don't depend on proc-macro-crate in no_std environments because it causes an awkward dependency

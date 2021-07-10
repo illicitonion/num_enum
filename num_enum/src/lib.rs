@@ -13,10 +13,11 @@ pub trait FromPrimitive: Sized {
 
 pub trait TryFromPrimitive: Sized {
     type Primitive: Copy + Eq + fmt::Debug;
+    type Error;
 
     const NAME: &'static str;
 
-    fn try_from_primitive(number: Self::Primitive) -> Result<Self, TryFromPrimitiveError<Self>>;
+    fn try_from_primitive(number: Self::Primitive) -> Result<Self, Self::Error>;
 }
 
 #[derive(::derivative::Derivative)]

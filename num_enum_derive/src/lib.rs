@@ -450,6 +450,7 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
 
         impl ::#krate::TryFromPrimitive for #name {
             type Primitive = #repr;
+            type Error = ::core::convert::Infallible;
 
             const NAME: &'static str = stringify!(#name);
 
@@ -458,7 +459,7 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
                 number: Self::Primitive,
             ) -> ::core::result::Result<
                 Self,
-                ::#krate::TryFromPrimitiveError<Self>,
+                ::core::convert::Infallible,
             >
             {
                 Ok(::#krate::FromPrimitive::from_primitive(number))
@@ -529,6 +530,7 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
     TokenStream::from(quote! {
         impl ::#krate::TryFromPrimitive for #name {
             type Primitive = #repr;
+            type Error = ::#krate::TryFromPrimitiveError<Self>;
 
             const NAME: &'static str = stringify!(#name);
 

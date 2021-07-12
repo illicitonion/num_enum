@@ -1,8 +1,9 @@
-#![cfg_attr(feature = "external_doc", feature(external_doc))]
-#![cfg_attr(feature = "external_doc", doc(include = "../README.md"))]
+// Wrap this in two cfg_attrs so that it continues to parse pre-1.54.0.
+// See https://github.com/rust-lang/rust/issues/82768
+#![cfg_attr(feature = "external_doc", cfg_attr(all(), doc = include_str!("../README.md")))]
 #![cfg_attr(
     not(feature = "external_doc"),
-    doc = "See https://docs.rs/num_enum for more info about this crate."
+    doc = "See <https://docs.rs/num_enum> for more info about this crate."
 )]
 #![cfg_attr(not(feature = "std"), no_std)]
 

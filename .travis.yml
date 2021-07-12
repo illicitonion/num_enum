@@ -13,10 +13,6 @@ script:
 
 matrix:
   include:
-    - name: "README.md doc test"
-      rust: nightly
-      script:
-        -  (cd num_enum && cargo test --features=external_doc --doc)
     - name: "no-std build"
       rust: stable
       script:

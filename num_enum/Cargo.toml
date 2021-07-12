@@ -17,12 +17,8 @@ license = "BSD-3-Clause"
 [features]
 std = ["num_enum_derive/std"]
 complex-expressions = ["num_enum_derive/complex-expressions"]
-external_doc = []
 
 default = ["std"]  # disable to use in a `no_std` environment
-
-[package.metadata.docs.rs]
-features = ["external_doc"]
 
 [badges]
 travis-ci = { repository = "illicitonion/num_enum", branch = "master" }

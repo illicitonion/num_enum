@@ -20,8 +20,8 @@ fn trybuild() {
     let fail = trybuild::TestCases::new();
     fail.compile_fail(directory.join("compile_fail/*.rs"));
 
-    if NIGHTLY == false {
-        fail.compile_fail(directory.join("compile_fail/*.rs"));
+    if NIGHTLY {
+        fail.compile_fail(directory.join("nightly/compile_fail/*.rs"));
     }
 
     let pass = trybuild::TestCases::new();

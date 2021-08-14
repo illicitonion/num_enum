@@ -113,7 +113,7 @@ impl Spanned for VariantAlternativesAttribute {
     }
 }
 
-#[derive(Default)]
+#[derive(::core::default::Default)]
 struct AttributeSpans {
     default: Vec<Span>,
     alternatives: Vec<Span>,
@@ -281,7 +281,7 @@ impl Parse for EnumInfo {
                     } else if attribute.path.is_ident("num_enum") {
                         match attribute.parse_args_with(NumEnumVariantAttributes::parse) {
                             Ok(variant_attributes) => {
-                                for variant_attribute in variant_attributes.items.iter() {
+                                for variant_attribute in variant_attributes.items {
                                     match variant_attribute {
                                         NumEnumVariantAttributeItem::Default(default) => {
                                             if has_default_variant {
@@ -294,8 +294,7 @@ impl Parse for EnumInfo {
                                         }
                                         NumEnumVariantAttributeItem::Alternatives(alternatives) => {
                                             attr_spans.alternatives.push(alternatives.span());
-                                            alternative_values
-                                                .extend(alternatives.expressions.iter().cloned());
+                                            alternative_values.extend(alternatives.expressions);
                                         }
                                     }
                                 }
@@ -687,6 +686,51 @@ Transmutes `number: {repr}` into a [`{name}`].
             #[inline]
             pub unsafe fn from_unchecked(number: #repr) -> Self {
                 ::core::mem::transmute(number)
+            }
+        }
+    })
+}
+
+/// Implements `core::default::Default` for a `#[repr(Primitive)] enum`.
+///
+/// Whichever variant has the `#[default]` or `#[num_enum(default)]` attribute will be returned.
+/// ----------------------------------------------
+///
+/// ```rust
+/// #[derive(Debug, Eq, PartialEq, num_enum::Default)]
+/// #[repr(u8)]
+/// enum Number {
+///     Zero,
+///     #[default]
+///     One,
+/// }
+///
+/// fn main() {
+///     assert_eq!(Number::One, Number::default());
+///     assert_eq!(Number::One, <Number as ::core::default::Default>::default());
+/// }
+/// ```
+#[proc_macro_derive(Default, attributes(num_enum, default))]
+pub fn derive_default(stream: TokenStream) -> TokenStream {
+    let enum_info = parse_macro_input!(stream as EnumInfo);
+
+    let default_ident = match enum_info.default() {
+        Some(ident) => ident,
+        None => {
+            let span = Span::call_site();
+            let message =
+                "#[derive(num_enum::Default)] requires a variant marked with `#[default]` or `#[num_enum(default)]`";
+            return syn::Error::new(span, message).to_compile_error().into();
+        }
+    };
+
+    let EnumInfo { ref name, .. } = enum_info;
+
+    TokenStream::from(quote! {
+        impl ::core::default::Default for #name {
+            #[inline]
+            fn default() -> Self {
+                Self::#default_ident
             }
         }
     })

@@ -94,11 +94,15 @@ struct VariantAlternativesAttribute {
 impl Parse for VariantAlternativesAttribute {
     fn parse(input: ParseStream) -> Result<Self> {
         let content;
+        let keyword = input.parse()?;
+        let _eq_token = input.parse()?;
+        let _bracket_token = syn::bracketed!(content in input);
+        let expressions = content.parse_terminated(Expr::parse)?;
         Ok(Self {
-            keyword: input.parse()?,
-            _eq_token: input.parse()?,
-            _bracket_token: syn::bracketed!(content in input),
-            expressions: content.parse_terminated(Expr::parse)?,
+            keyword,
+            _eq_token,
+            _bracket_token,
+            expressions,
         })
     }
 }
@@ -340,10 +344,8 @@ impl Parse for EnumInfo {
 ///     One,
 /// }
 ///
-/// fn main() {
-///     let zero: u8 = Number::Zero.into();
-///     assert_eq!(zero, 0u8);
-/// }
+/// let zero: u8 = Number::Zero.into();
+/// assert_eq!(zero, 0u8);
 /// ```
 #[proc_macro_derive(IntoPrimitive)]
 pub fn derive_into_primitive(input: TokenStream) -> TokenStream {
@@ -376,16 +378,14 @@ pub fn derive_into_primitive(input: TokenStream) -> TokenStream {
 ///     NonZero,
 /// }
 ///
-/// fn main() {
-///     let zero = Number::from(0u8);
-///     assert_eq!(zero, Number::Zero);
+/// let zero = Number::from(0u8);
+/// assert_eq!(zero, Number::Zero);
 ///
-///     let one = Number::from(1u8);
-///     assert_eq!(one, Number::NonZero);
+/// let one = Number::from(1u8);
+/// assert_eq!(one, Number::NonZero);
 ///
-///     let two = Number::from(2u8);
-///     assert_eq!(two, Number::NonZero);
-/// }
+/// let two = Number::from(2u8);
+/// assert_eq!(two, Number::NonZero);
 /// ```
 #[proc_macro_derive(FromPrimitive, attributes(num_enum))]
 pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
@@ -483,16 +483,14 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
 ///     One,
 /// }
 ///
-/// fn main() {
-///     let zero = Number::try_from(0u8);
-///     assert_eq!(zero, Ok(Number::Zero));
+/// let zero = Number::try_from(0u8);
+/// assert_eq!(zero, Ok(Number::Zero));
 ///
-///     let three = Number::try_from(3u8);
-///     assert_eq!(
-///         three.unwrap_err().to_string(),
-///         "No discriminant in enum `Number` matches the value `3`",
-///     );
-/// }
+/// let three = Number::try_from(3u8);
+/// assert_eq!(
+///     three.unwrap_err().to_string(),
+///     "No discriminant in enum `Number` matches the value `3`",
+/// );
 /// ```
 #[proc_macro_derive(TryFromPrimitive, attributes(num_enum))]
 pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
@@ -579,12 +577,10 @@ fn get_crate_name() -> String {
         proc_macro_crate::FoundCrate::Itself
     });
 
-    let crate_name = match found_crate {
+    match found_crate {
         proc_macro_crate::FoundCrate::Itself => String::from("num_enum"),
         proc_macro_crate::FoundCrate::Name(name) => name,
-    };
-
-    crate_name
+    }
 }
 
 // Don't depend on proc-macro-crate in no_std environments because it causes an awkward dependency

@@ -38,7 +38,7 @@ pub struct TryFromPrimitiveError<Enum: TryFromPrimitive> {
 }
 
 impl<Enum: TryFromPrimitive> fmt::Display for TryFromPrimitiveError<Enum> {
-    fn fmt(self: &'_ Self, stream: &'_ mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, stream: &'_ mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             stream,
             "No discriminant in enum `{name}` matches the value `{input:?}`",

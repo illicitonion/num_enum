@@ -1,0 +1,89 @@
+name: presubmit
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  schedule:
+    - cron: "0 18 * * *"
+jobs:
+  presubmit:
+    name: Presubmit
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: [stable, beta, nightly]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Fetch toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.toolchain }}
+          components: rustfmt, clippy
+          target: thumbv6m-none-eabi
+      - name: Run tests with std
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path=num_enum/Cargo.toml --no-default-features --features=std
+          toolchain: ${{ matrix.toolchain }}
+      - name: Run tests with std + complex-expressions
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path=num_enum/Cargo.toml --no-default-features --features=std,complex-expressions
+          toolchain: ${{ matrix.toolchain }}
+      - name: Run tests with no features
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path=num_enum/Cargo.toml --no-default-features --features=
+          toolchain: ${{ matrix.toolchain }}
+      - name: Run tests with complex-expressions
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path=num_enum/Cargo.toml --no-default-features --features=complex-expressions
+          toolchain: ${{ matrix.toolchain }}
+      - name: Build no-std
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --manifest-path=num_enum/Cargo.toml --target thumbv6m-none-eabi --no-default-features
+          toolchain: ${{ matrix.toolchain }}
+      - name: Regression test for https://github.com/illicitonion/num_enum/issues/18
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --manifest-path=serde_example/Cargo.toml --target thumbv6m-none-eabi -p serde_example --lib --no-default-features
+          toolchain: ${{ matrix.toolchain }}
+      - name: Doc
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path=num_enum/Cargo.toml --features=external_doc --doc
+          toolchain: ${{ matrix.toolchain }}
+      - name: Fmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+          toolchain: ${{ matrix.toolchain }}
+      - name: Annotate commit with clippy warnings
+        uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-features
+          toolchain: ${{ matrix.toolchain }}
+      - name: Install cargo-audit binary crate
+        uses: actions-rs/install@v0.1
+        with:
+          crate: cargo-audit
+          version: latest
+          use-tool-cache: true
+      - name: Security audit
+        uses: actions-rs/audit-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}

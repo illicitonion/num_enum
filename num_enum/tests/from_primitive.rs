@@ -29,6 +29,26 @@ fn has_from_primitive_number() {
 }
 
 #[test]
+fn has_from_primitive_number_standard_default_attribute() {
+    #[derive(Debug, Eq, PartialEq, FromPrimitive)]
+    #[repr(u8)]
+    enum Enum {
+        Zero = 0,
+        #[default]
+        NonZero = 1,
+    }
+
+    let zero = Enum::from_primitive(0_u8);
+    assert_eq!(zero, Enum::Zero);
+
+    let one = Enum::from_primitive(1_u8);
+    assert_eq!(one, Enum::NonZero);
+
+    let two = Enum::from_primitive(2_u8);
+    assert_eq!(two, Enum::NonZero);
+}
+
+#[test]
 fn from_primitive_number() {
     #[derive(Debug, Eq, PartialEq, FromPrimitive)]
     #[repr(u8)]

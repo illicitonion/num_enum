@@ -2,9 +2,9 @@
 #[repr(u8)]
 enum Numbers {
     Zero,
-    #[default]
+    #[num_enum(default)]
     One,
-    #[default]
+    #[num_enum(default)]
     Two,
 }
 

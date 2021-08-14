@@ -4,7 +4,7 @@ enum Numbers {
     Zero,
     #[default]
     One,
-    #[default]
+    #[num_enum(default)]
     Two,
 }
 

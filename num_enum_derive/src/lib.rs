@@ -270,35 +270,44 @@ impl Parse for EnumInfo {
                 let mut is_default: bool = false;
 
                 for attribute in variant.attrs {
-                    if !attribute.path.is_ident("num_enum") {
-                        continue;
-                    }
-                    match attribute.parse_args_with(NumEnumVariantAttributes::parse) {
-                        Ok(variant_attributes) => {
-                            for variant_attribute in variant_attributes.items.iter() {
-                                match variant_attribute {
-                                    NumEnumVariantAttributeItem::Default(default) => {
-                                        if has_default_variant {
-                                            die!(default.keyword =>
-                                                "Multiple variants marked `#[num_enum(default)]` found"
-                                            );
+                    if attribute.path.is_ident("default") {
+                        if has_default_variant {
+                            die!(attribute =>
+                                "Multiple variants marked `#[default]` or `#[num_enum(default)]` found"
+                            );
+                        }
+                        attr_spans.default.push(attribute.span());
+                        is_default = true;
+                    } else if attribute.path.is_ident("num_enum") {
+                        match attribute.parse_args_with(NumEnumVariantAttributes::parse) {
+                            Ok(variant_attributes) => {
+                                for variant_attribute in variant_attributes.items.iter() {
+                                    match variant_attribute {
+                                        NumEnumVariantAttributeItem::Default(default) => {
+                                            if has_default_variant {
+                                                die!(default.keyword =>
+                                                    "Multiple variants marked `#[default]` or `#[num_enum(default)]` found"
+                                                );
+                                            }
+                                            attr_spans.default.push(default.span());
+                                            is_default = true;
                                         }
-                                        attr_spans.default.push(default.span());
-                                        is_default = true;
-                                    }
-                                    NumEnumVariantAttributeItem::Alternatives(alternatives) => {
-                                        attr_spans.alternatives.push(alternatives.span());
-                                        alternative_values
-                                            .extend(alternatives.expressions.iter().cloned());
+                                        NumEnumVariantAttributeItem::Alternatives(alternatives) => {
+                                            attr_spans.alternatives.push(alternatives.span());
+                                            alternative_values
+                                                .extend(alternatives.expressions.iter().cloned());
+                                        }
                                     }
                                 }
                             }
+                            Err(err) => {
+                                die!(attribute =>
+                                    format!("Invalid attribute: {}", err)
+                                );
+                            }
                         }
-                        Err(err) => {
-                            die!(attribute =>
-                                format!("Invalid attribute: {}", err)
-                            );
-                        }
+                    } else {
+                        continue;
                     }
 
                     has_default_variant |= is_default;
@@ -387,7 +396,7 @@ pub fn derive_into_primitive(input: TokenStream) -> TokenStream {
 /// let two = Number::from(2u8);
 /// assert_eq!(two, Number::NonZero);
 /// ```
-#[proc_macro_derive(FromPrimitive, attributes(num_enum))]
+#[proc_macro_derive(FromPrimitive, attributes(num_enum, default))]
 pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
     let enum_info: EnumInfo = parse_macro_input!(input);
     let krate = Ident::new(&get_crate_name(), Span::call_site());
@@ -397,7 +406,7 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
         None => {
             let span = Span::call_site();
             let message =
-                "#[derive(FromPrimitive)] requires a variant marked with `#[num_enum(default)]`";
+                "#[derive(FromPrimitive)] requires a variant marked with `#[default]` or `#[num_enum(default)]`";
             return syn::Error::new(span, message).to_compile_error().into();
         }
     };

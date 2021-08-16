@@ -705,10 +705,8 @@ Transmutes `number: {repr}` into a [`{name}`].
 ///     One,
 /// }
 ///
-/// fn main() {
-///     assert_eq!(Number::One, Number::default());
-///     assert_eq!(Number::One, <Number as ::core::default::Default>::default());
-/// }
+/// assert_eq!(Number::One, Number::default());
+/// assert_eq!(Number::One, <Number as ::core::default::Default>::default());
 /// ```
 #[proc_macro_derive(Default, attributes(num_enum, default))]
 pub fn derive_default(stream: TokenStream) -> TokenStream {

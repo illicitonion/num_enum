@@ -204,3 +204,8 @@ enum Number {
 
 To cut down on compile time, these are not supported by default, but if you enable the `complex-expressions`
 feature of your dependency on `num_enum`, these should start working.
+
+License
+-------
+
+num_enum may be used under your choice of the BSD 3-clause, Apache 2, or MIT license.

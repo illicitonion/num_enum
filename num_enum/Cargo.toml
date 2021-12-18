@@ -12,7 +12,7 @@ repository = "https://github.com/illicitonion/num_enum"
 readme = "README.md"
 keywords = ["enum", "conversion", "safe", "ffi", "derive"]
 categories = ["rust-patterns"]
-license = "BSD-3-Clause"
+license = "BSD-3-Clause OR MIT OR Apache-2.0"
 
 [features]
 std = ["num_enum_derive/std"]

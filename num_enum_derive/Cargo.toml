@@ -11,7 +11,7 @@ edition = "2018"
 repository = "https://github.com/illicitonion/num_enum"
 keywords = []
 categories = []
-license = "BSD-3-Clause"
+license = "BSD-3-Clause OR MIT OR Apache-2.0"
 
 [lib]
 proc-macro = true

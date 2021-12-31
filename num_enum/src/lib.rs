@@ -27,18 +27,31 @@ pub trait TryFromPrimitive: Sized {
     fn try_from_primitive(number: Self::Primitive) -> Result<Self, TryFromPrimitiveError<Self>>;
 }
 
-#[derive(::derivative::Derivative)]
-#[derivative( // use derivative to remove incorrect bound on `Enum` parameter. See https://github.com/rust-lang/rust/issues/26925
-    Debug(bound = ""),
-    Clone(bound = ""),
-    Copy(bound = ""),
-    PartialEq(bound = ""),
-    Eq(bound = "")
-)]
 pub struct TryFromPrimitiveError<Enum: TryFromPrimitive> {
     pub number: Enum::Primitive,
 }
 
+impl<Enum: TryFromPrimitive> Copy for TryFromPrimitiveError<Enum> {}
+impl<Enum: TryFromPrimitive> Clone for TryFromPrimitiveError<Enum> {
+    fn clone(&self) -> Self {
+        TryFromPrimitiveError {
+            number: self.number,
+        }
+    }
+}
+impl<Enum: TryFromPrimitive> Eq for TryFromPrimitiveError<Enum> {}
+impl<Enum: TryFromPrimitive> PartialEq for TryFromPrimitiveError<Enum> {
+    fn eq(&self, other: &Self) -> bool {
+        self.number == other.number
+    }
+}
+impl<Enum: TryFromPrimitive> fmt::Debug for TryFromPrimitiveError<Enum> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("TryFromPrimitiveError")
+            .field("number", &self.number)
+            .finish()
+    }
+}
 impl<Enum: TryFromPrimitive> fmt::Display for TryFromPrimitiveError<Enum> {
     fn fmt(&self, stream: &'_ mut fmt::Formatter<'_>) -> fmt::Result {
         write!(

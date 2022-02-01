@@ -1,5 +1,5 @@
-error: #[derive(FromPrimitive)] requires a variant marked with `#[default]` or `#[num_enum(default)]`
- --> $DIR/exhaustive_enum.rs:1:10
+error: #[derive(FromPrimitive)] requires a variant marked with `#[default]`, `#[num_enum(default)]`, `#[catch_all]`, or `#[num_enum(catch_all)`
+ --> tests/try_build/compile_fail/exhaustive_enum.rs:1:10
   |
 1 | #[derive(num_enum::FromPrimitive)]
   |          ^^^^^^^^^^^^^^^^^^^^^^^

@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "nightly", feature(arbitrary_enum_discriminant))]
+
 use ::std::convert::TryFrom;
 
 use ::num_enum::{FromPrimitive, TryFromPrimitive};
@@ -74,4 +76,25 @@ fn from_primitive_number() {
 
     let try_from = Enum::try_from(0_u8);
     assert_eq!(try_from, Ok(Enum::Whatever));
+}
+
+#[test]
+#[cfg(feature = "nightly")]
+fn from_primitive_number_catch_all() {
+    #[derive(Debug, Eq, PartialEq, FromPrimitive)]
+    #[repr(u8)]
+    enum Enum {
+        Zero = 0,
+        #[num_enum(catch_all)]
+        NonZero(u8),
+    }
+
+    let zero = Enum::from_primitive(0_u8);
+    assert_eq!(zero, Enum::Zero);
+
+    let one = Enum::from_primitive(1_u8);
+    assert_eq!(one, Enum::NonZero(1_u8));
+
+    let two = Enum::from_primitive(2_u8);
+    assert_eq!(two, Enum::NonZero(2_u8));
 }

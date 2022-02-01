@@ -418,16 +418,30 @@ impl Parse for EnumInfo {
 /// let zero: u8 = Number::Zero.into();
 /// assert_eq!(zero, 0u8);
 /// ```
-#[proc_macro_derive(IntoPrimitive)]
+#[proc_macro_derive(IntoPrimitive, attributes(num_enum, catch_all))]
 pub fn derive_into_primitive(input: TokenStream) -> TokenStream {
-    let EnumInfo { name, repr, .. } = parse_macro_input!(input as EnumInfo);
+    let enum_info = parse_macro_input!(input as EnumInfo);
+    let catch_all = enum_info.catch_all();
+    let name = &enum_info.name;
+    let repr = &enum_info.repr;
+
+    let body = if let Some(catch_all_ident) = catch_all {
+        quote! { 
+            match enum_value {
+                #name::#catch_all_ident(raw) => raw,
+                rest => unsafe { *(&rest as *const #name as *const Self) }
+            }
+        }
+    } else {
+        quote! { enum_value as Self }
+    };
 
     TokenStream::from(quote! {
         impl From<#name> for #repr {
             #[inline]
             fn from (enum_value: #name) -> Self
             {
-                enum_value as Self
+                #body
             }
         }
     })

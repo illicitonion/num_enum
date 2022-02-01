@@ -463,7 +463,7 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
     let enum_info: EnumInfo = parse_macro_input!(input);
     let krate = Ident::new(&get_crate_name(), Span::call_site());
 
-    let wildcard_body = if let Some(default_ident) = enum_info.default() {
+    let catch_all_body = if let Some(default_ident) = enum_info.default() {
         quote! { Self::#default_ident }
     } else if let Some(catch_all_ident) = enum_info.catch_all() {
         quote! { Self::#catch_all_ident(number) }
@@ -504,7 +504,7 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
                         => Self::#variant_idents,
                     )*
                     #[allow(unreachable_patterns)]
-                    _ => #wildcard_body,
+                    _ => #catch_all_body,
                 }
             }
         }

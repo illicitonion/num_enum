@@ -458,7 +458,7 @@ pub fn derive_into_primitive(input: TokenStream) -> TokenStream {
 /// let two = Number::from(2u8);
 /// assert_eq!(two, Number::NonZero);
 /// ```
-#[proc_macro_derive(FromPrimitive, attributes(num_enum, default))]
+#[proc_macro_derive(FromPrimitive, attributes(num_enum, default, catch_all))]
 pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
     let enum_info: EnumInfo = parse_macro_input!(input);
     let krate = Ident::new(&get_crate_name(), Span::call_site());

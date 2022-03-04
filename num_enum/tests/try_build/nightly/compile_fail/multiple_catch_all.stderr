@@ -1,5 +1,5 @@
-error: Variant with `catch_all` must be a tuple with exactly 1 field matching the repr type
- --> tests/try_build/nightly/compile_fail/multiple_catch_all.rs:6:16
+error: Multiple variants marked with `#[num_enum(catch_all)]`
+ --> tests/try_build/nightly/compile_fail/multiple_catch_all.rs:8:16
   |
-6 |     #[num_enum(catch_all)]
+8 |     #[num_enum(catch_all)]
   |                ^^^^^^^^^

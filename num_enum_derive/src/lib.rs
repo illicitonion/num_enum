@@ -332,22 +332,22 @@ impl Parse for EnumInfo {
                                             has_default_variant = true;
                                         }
                                         NumEnumVariantAttributeItem::CatchAll(catch_all) => {
+                                            if has_catch_all_variant {
+                                                die!(catch_all.keyword =>
+                                                    "Multiple variants marked with `#[num_enum(catch_all)]`"
+                                                );
+                                            } else if has_default_variant {
+                                                die!(catch_all.keyword =>
+                                                    "Attribute `catch_all` is mutually exclusive with `default`"
+                                                );
+                                            }
+
                                             match variant
                                                 .fields
                                                 .iter()
                                                 .collect::<Vec<_>>()
                                                 .as_slice()
                                             {
-                                                _ if has_catch_all_variant => {
-                                                    die!(catch_all.keyword =>
-                                                        "Multiple variants marked with `#[num_enum(catch_all)]`"
-                                                    );
-                                                }
-                                                _ if has_default_variant => {
-                                                    die!(catch_all.keyword =>
-                                                        "Attribute `catch_all` is mutually exclusive with `default`"
-                                                    );
-                                                }
                                                 [syn::Field {
                                                     ty: syn::Type::Path(syn::TypePath { path, .. }),
                                                     ..

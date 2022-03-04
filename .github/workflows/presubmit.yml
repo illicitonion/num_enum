@@ -47,6 +47,13 @@ jobs:
           command: test
           args: --manifest-path=num_enum/Cargo.toml --no-default-features --features=complex-expressions
           toolchain: ${{ matrix.toolchain }}
+      - name: Run tests with std and nightly features
+        if: matrix.toolchain == 'nightly'
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path=num_enum/Cargo.toml --no-default-features --features=std,nightly
+          toolchain: ${{ matrix.toolchain }}
       - name: Build no-std
         uses: actions-rs/cargo@v1
         with:

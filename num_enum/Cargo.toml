@@ -18,6 +18,7 @@ license = "BSD-3-Clause OR MIT OR Apache-2.0"
 std = ["num_enum_derive/std"]
 complex-expressions = ["num_enum_derive/complex-expressions"]
 external_doc = []
+nightly = []
 
 default = ["std"]  # disable to use in a `no_std` environment
 

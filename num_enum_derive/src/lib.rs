@@ -33,6 +33,7 @@ fn literal(i: u64) -> Expr {
 
 mod kw {
     syn::custom_keyword!(default);
+    syn::custom_keyword!(catch_all);
     syn::custom_keyword!(alternatives);
 }
 
@@ -50,6 +51,7 @@ impl Parse for NumEnumVariantAttributes {
 
 enum NumEnumVariantAttributeItem {
     Default(VariantDefaultAttribute),
+    CatchAll(VariantCatchAllAttribute),
     Alternatives(VariantAlternativesAttribute),
 }
 
@@ -58,6 +60,8 @@ impl Parse for NumEnumVariantAttributeItem {
         let lookahead = input.lookahead1();
         if lookahead.peek(kw::default) {
             input.parse().map(Self::Default)
+        } else if lookahead.peek(kw::catch_all) {
+            input.parse().map(Self::CatchAll)
         } else if lookahead.peek(kw::alternatives) {
             input.parse().map(Self::Alternatives)
         } else {
@@ -79,6 +83,24 @@ impl Parse for VariantDefaultAttribute {
 }
 
 impl Spanned for VariantDefaultAttribute {
+    fn span(&self) -> Span {
+        self.keyword.span()
+    }
+}
+
+struct VariantCatchAllAttribute {
+    keyword: kw::catch_all,
+}
+
+impl Parse for VariantCatchAllAttribute {
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok(Self {
+            keyword: input.parse()?,
+        })
+    }
+}
+
+impl Spanned for VariantCatchAllAttribute {
     fn span(&self) -> Span {
         self.keyword.span()
     }
@@ -116,6 +138,7 @@ impl Spanned for VariantAlternativesAttribute {
 #[derive(::core::default::Default)]
 struct AttributeSpans {
     default: Vec<Span>,
+    catch_all: Vec<Span>,
     alternatives: Vec<Span>,
 }
 
@@ -123,6 +146,7 @@ struct VariantInfo {
     ident: Ident,
     attr_spans: AttributeSpans,
     is_default: bool,
+    is_catch_all: bool,
     canonical_value: Expr,
     alternative_values: Vec<Expr>,
 }
@@ -159,6 +183,13 @@ impl EnumInfo {
             .map(|info| &info.ident)
     }
 
+    fn catch_all(&self) -> Option<&Ident> {
+        self.variants
+            .iter()
+            .find(|info| info.is_catch_all)
+            .map(|info| &info.ident)
+    }
+
     fn first_default_attr_span(&self) -> Option<&Span> {
         self.variants
             .iter()
@@ -181,6 +212,7 @@ impl EnumInfo {
     fn expression_idents(&self) -> Vec<Vec<Ident>> {
         self.variants
             .iter()
+            .filter(|variant| !variant.is_catch_all)
             .map(|info| {
                 let indices = 0..(info.alternative_values.len() + 1);
                 indices
@@ -244,20 +276,14 @@ impl Parse for EnumInfo {
 
             let mut variants: Vec<VariantInfo> = vec![];
             let mut has_default_variant: bool = false;
+            let mut has_catch_all_variant: bool = false;
 
             let mut next_discriminant = literal(0);
             for variant in data.variants.into_iter() {
                 let ident = variant.ident.clone();
 
-                match &variant.fields {
-                    Fields::Named(_) | Fields::Unnamed(_) => {
-                        die!(variant => format!("`{}` only supports unit variants (with no associated data), but `{}::{}` was not a unit variant.", get_crate_name(), name, ident));
-                    }
-                    Fields::Unit => {}
-                }
-
-                let discriminant = match variant.discriminant {
-                    Some(d) => d.1,
+                let discriminant = match &variant.discriminant {
+                    Some(d) => d.1.clone(),
                     None => next_discriminant.clone(),
                 };
 
@@ -268,17 +294,25 @@ impl Parse for EnumInfo {
                 // and forbidden by `#[derive(UnsafeFromPrimitive)]`, so we need to
                 // keep track of whether we encountered such an attribute:
                 let mut is_default: bool = false;
+                let mut is_catch_all: bool = false;
 
-                for attribute in variant.attrs {
+                for attribute in &variant.attrs {
                     if attribute.path.is_ident("default") {
                         if has_default_variant {
                             die!(attribute =>
                                 "Multiple variants marked `#[default]` or `#[num_enum(default)]` found"
                             );
+                        } else if has_catch_all_variant {
+                            die!(attribute =>
+                                "Attribute `default` is mutually exclusive with `catch_all`"
+                            );
                         }
                         attr_spans.default.push(attribute.span());
                         is_default = true;
-                    } else if attribute.path.is_ident("num_enum") {
+                        has_default_variant = true;
+                    }
+
+                    if attribute.path.is_ident("num_enum") {
                         match attribute.parse_args_with(NumEnumVariantAttributes::parse) {
                             Ok(variant_attributes) => {
                                 for variant_attribute in variant_attributes.items {
@@ -288,9 +322,46 @@ impl Parse for EnumInfo {
                                                 die!(default.keyword =>
                                                     "Multiple variants marked `#[default]` or `#[num_enum(default)]` found"
                                                 );
+                                            } else if has_catch_all_variant {
+                                                die!(default.keyword =>
+                                                    "Attribute `default` is mutually exclusive with `catch_all`"
+                                                );
                                             }
                                             attr_spans.default.push(default.span());
                                             is_default = true;
+                                            has_default_variant = true;
+                                        }
+                                        NumEnumVariantAttributeItem::CatchAll(catch_all) => {
+                                            if has_catch_all_variant {
+                                                die!(catch_all.keyword =>
+                                                    "Multiple variants marked with `#[num_enum(catch_all)]`"
+                                                );
+                                            } else if has_default_variant {
+                                                die!(catch_all.keyword =>
+                                                    "Attribute `catch_all` is mutually exclusive with `default`"
+                                                );
+                                            }
+
+                                            match variant
+                                                .fields
+                                                .iter()
+                                                .collect::<Vec<_>>()
+                                                .as_slice()
+                                            {
+                                                [syn::Field {
+                                                    ty: syn::Type::Path(syn::TypePath { path, .. }),
+                                                    ..
+                                                }] if path.is_ident(&repr) => {
+                                                    attr_spans.catch_all.push(catch_all.span());
+                                                    is_catch_all = true;
+                                                    has_catch_all_variant = true;
+                                                }
+                                                _ => {
+                                                    die!(catch_all.keyword =>
+                                                        "Variant with `catch_all` must be a tuple with exactly 1 field matching the repr type"
+                                                    );
+                                                }
+                                            }
                                         }
                                         NumEnumVariantAttributeItem::Alternatives(alternatives) => {
                                             attr_spans.alternatives.push(alternatives.span());
@@ -305,11 +376,16 @@ impl Parse for EnumInfo {
                                 );
                             }
                         }
-                    } else {
-                        continue;
                     }
+                }
 
-                    has_default_variant |= is_default;
+                if !is_catch_all {
+                    match &variant.fields {
+                        Fields::Named(_) | Fields::Unnamed(_) => {
+                            die!(variant => format!("`{}` only supports unit variants (with no associated data), but `{}::{}` was not a unit variant.", get_crate_name(), name, ident));
+                        }
+                        Fields::Unit => {}
+                    }
                 }
 
                 let canonical_value = discriminant.clone();
@@ -318,6 +394,7 @@ impl Parse for EnumInfo {
                     ident,
                     attr_spans,
                     is_default,
+                    is_catch_all,
                     canonical_value,
                     alternative_values,
                 });
@@ -355,16 +432,30 @@ impl Parse for EnumInfo {
 /// let zero: u8 = Number::Zero.into();
 /// assert_eq!(zero, 0u8);
 /// ```
-#[proc_macro_derive(IntoPrimitive)]
+#[proc_macro_derive(IntoPrimitive, attributes(num_enum, catch_all))]
 pub fn derive_into_primitive(input: TokenStream) -> TokenStream {
-    let EnumInfo { name, repr, .. } = parse_macro_input!(input as EnumInfo);
+    let enum_info = parse_macro_input!(input as EnumInfo);
+    let catch_all = enum_info.catch_all();
+    let name = &enum_info.name;
+    let repr = &enum_info.repr;
+
+    let body = if let Some(catch_all_ident) = catch_all {
+        quote! {
+            match enum_value {
+                #name::#catch_all_ident(raw) => raw,
+                rest => unsafe { *(&rest as *const #name as *const Self) }
+            }
+        }
+    } else {
+        quote! { enum_value as Self }
+    };
 
     TokenStream::from(quote! {
         impl From<#name> for #repr {
             #[inline]
             fn from (enum_value: #name) -> Self
             {
-                enum_value as Self
+                #body
             }
         }
     })
@@ -395,19 +486,20 @@ pub fn derive_into_primitive(input: TokenStream) -> TokenStream {
 /// let two = Number::from(2u8);
 /// assert_eq!(two, Number::NonZero);
 /// ```
-#[proc_macro_derive(FromPrimitive, attributes(num_enum, default))]
+#[proc_macro_derive(FromPrimitive, attributes(num_enum, default, catch_all))]
 pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
     let enum_info: EnumInfo = parse_macro_input!(input);
     let krate = Ident::new(&get_crate_name(), Span::call_site());
 
-    let default_ident: Ident = match enum_info.default() {
-        Some(ident) => ident.clone(),
-        None => {
-            let span = Span::call_site();
-            let message =
-                "#[derive(FromPrimitive)] requires a variant marked with `#[default]` or `#[num_enum(default)]`";
-            return syn::Error::new(span, message).to_compile_error().into();
-        }
+    let catch_all_body = if let Some(default_ident) = enum_info.default() {
+        quote! { Self::#default_ident }
+    } else if let Some(catch_all_ident) = enum_info.catch_all() {
+        quote! { Self::#catch_all_ident(number) }
+    } else {
+        let span = Span::call_site();
+        let message =
+            "#[derive(FromPrimitive)] requires a variant marked with `#[default]`, `#[num_enum(default)]`, or `#[num_enum(catch_all)`";
+        return syn::Error::new(span, message).to_compile_error().into();
     };
 
     let EnumInfo {
@@ -440,7 +532,7 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
                         => Self::#variant_idents,
                     )*
                     #[allow(unreachable_patterns)]
-                    _ => Self::#default_ident,
+                    _ => #catch_all_body,
                 }
             }
         }

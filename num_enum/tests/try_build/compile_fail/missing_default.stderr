@@ -1,4 +1,4 @@
-error: #[derive(FromPrimitive)] requires a variant marked with `#[default]` or `#[num_enum(default)]`
+error: #[derive(FromPrimitive)] requires a variant marked with `#[default]`, `#[num_enum(default)]`, or `#[num_enum(catch_all)`
  --> $DIR/missing_default.rs:1:10
   |
 1 | #[derive(num_enum::FromPrimitive)]

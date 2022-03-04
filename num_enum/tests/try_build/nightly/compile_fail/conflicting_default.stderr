@@ -1,5 +1,5 @@
 error[E0119]: conflicting implementations of trait `std::default::Default` for type `Number`
- --> tests/try_build/compile_fail/conflicting_default.rs:3:19
+ --> tests/try_build/nightly/compile_fail/conflicting_default.rs:3:19
   |
 3 | #[derive(Default, num_enum::Default)]
   |          -------  ^^^^^^^^^^^^^^^^^ conflicting implementation for `Number`

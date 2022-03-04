@@ -302,18 +302,17 @@ impl Parse for EnumInfo {
                             die!(attribute =>
                                 "Multiple variants marked `#[default]` or `#[num_enum(default)]` found"
                             );
+                        } else if has_catch_all_variant {
+                            die!(attribute => 
+                                "Attribute `default` is mutually exclusive with `catch_all`"
+                            );
                         }
                         attr_spans.default.push(attribute.span());
                         is_default = true;
-                    } else if attribute.path.is_ident("catch_all") {
-                        if has_catch_all_variant {
-                            die!(attribute =>
-                                "Multiple variants marked `#[catch_all]` or `#[num_enum(catch_all)]` found"
-                            );
-                        }
-                        attr_spans.catch_all.push(attribute.span());
-                        is_catch_all = true;
-                    } else if attribute.path.is_ident("num_enum") {
+                        has_default_variant = true;
+                    }
+
+                    if attribute.path.is_ident("num_enum") {
                         match attribute.parse_args_with(NumEnumVariantAttributes::parse) {
                             Ok(variant_attributes) => {
                                 for variant_attribute in variant_attributes.items {
@@ -330,19 +329,31 @@ impl Parse for EnumInfo {
                                             }
                                             attr_spans.default.push(default.span());
                                             is_default = true;
+                                            has_default_variant = true;
                                         },
                                         NumEnumVariantAttributeItem::CatchAll(catch_all) => {
-                                            if has_catch_all_variant {
-                                                die!(catch_all.keyword => 
-                                                    "Multiple variants marked with `#[catch_all]` or `#[num_enum(catch_all)]`"
-                                                );
-                                            } else if has_catch_all_variant {
-                                                die!(catch_all.keyword => 
-                                                    "Attribute `catch_all` is mutually exclusive with `default`"
-                                                );
+                                            match variant.fields.iter().collect::<Vec<_>>().as_slice() {
+                                                _ if has_catch_all_variant => {
+                                                    die!(catch_all.keyword => 
+                                                        "Multiple variants marked with `#[num_enum(catch_all)]`"
+                                                    );
+                                                },
+                                                _ if has_default_variant => {
+                                                    die!(catch_all.keyword => 
+                                                        "Attribute `catch_all` is mutually exclusive with `default`"
+                                                    );
+                                                },
+                                                [syn::Field { ty: syn::Type::Path(syn::TypePath { path, .. }), .. }] if path.is_ident(&repr) => {
+                                                    attr_spans.catch_all.push(catch_all.span());
+                                                    is_catch_all = true;
+                                                    has_catch_all_variant = true;
+                                                },
+                                                _ => {
+                                                    die!(catch_all.keyword =>
+                                                        "Variant with `catch_all` must be a tuple with exactly 1 field matching the repr type"
+                                                    );
+                                                }
                                             }
-                                            attr_spans.catch_all.push(catch_all.span());
-                                            is_catch_all = true;
                                         },
                                         NumEnumVariantAttributeItem::Alternatives(alternatives) => {
                                             attr_spans.alternatives.push(alternatives.span());
@@ -357,12 +368,7 @@ impl Parse for EnumInfo {
                                 );
                             }
                         }
-                    } else {
-                        continue;
                     }
-
-                    has_default_variant |= is_default;
-                    has_catch_all_variant |= is_catch_all;
                 }
 
                 if !is_catch_all {
@@ -484,7 +490,7 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
     } else {
         let span = Span::call_site();
         let message =
-            "#[derive(FromPrimitive)] requires a variant marked with `#[default]`, `#[num_enum(default)]`, `#[catch_all]`, or `#[num_enum(catch_all)`";
+            "#[derive(FromPrimitive)] requires a variant marked with `#[default]`, `#[num_enum(default)]`, or `#[num_enum(catch_all)`";
         return syn::Error::new(span, message).to_compile_error().into();
     };
 

@@ -85,7 +85,7 @@ fn from_primitive_number_catch_all() {
     #[repr(u8)]
     enum Enum {
         Zero = 0,
-        #[catch_all]
+        #[num_enum(catch_all)]
         NonZero(u8),
     }
 

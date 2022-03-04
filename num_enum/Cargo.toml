@@ -1,6 +1,6 @@
 [package]
 name = "num_enum"
-version = "0.5.6"  # Keep in sync with num_enum_derive.
+version = "0.5.7"  # Keep in sync with num_enum_derive.
 authors = [
   "Daniel Wagner-Hall <dawagner@gmail.com>",
   "Daniel Henry-Mantilla <daniel.henry.mantilla@gmail.com>",
@@ -30,7 +30,7 @@ travis-ci = { repository = "illicitonion/num_enum", branch = "master" }
 maintenance = { status = "passively-maintained" }
 
 [dependencies]
-num_enum_derive = { version = "0.5.6", path = "../num_enum_derive", default-features = false }
+num_enum_derive = { version = "0.5.7", path = "../num_enum_derive", default-features = false }
 
 [dev-dependencies]
 anyhow = "1"

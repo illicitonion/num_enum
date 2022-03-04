@@ -89,13 +89,13 @@ impl Spanned for VariantDefaultAttribute {
 }
 
 struct VariantCatchAllAttribute {
-    keyword: kw::catch_all
+    keyword: kw::catch_all,
 }
 
 impl Parse for VariantCatchAllAttribute {
     fn parse(input: ParseStream) -> Result<Self> {
         Ok(Self {
-            keyword: input.parse()?
+            keyword: input.parse()?,
         })
     }
 }
@@ -303,7 +303,7 @@ impl Parse for EnumInfo {
                                 "Multiple variants marked `#[default]` or `#[num_enum(default)]` found"
                             );
                         } else if has_catch_all_variant {
-                            die!(attribute => 
+                            die!(attribute =>
                                 "Attribute `default` is mutually exclusive with `catch_all`"
                             );
                         }
@@ -323,38 +323,46 @@ impl Parse for EnumInfo {
                                                     "Multiple variants marked `#[default]` or `#[num_enum(default)]` found"
                                                 );
                                             } else if has_catch_all_variant {
-                                                die!(default.keyword => 
+                                                die!(default.keyword =>
                                                     "Attribute `default` is mutually exclusive with `catch_all`"
                                                 );
                                             }
                                             attr_spans.default.push(default.span());
                                             is_default = true;
                                             has_default_variant = true;
-                                        },
+                                        }
                                         NumEnumVariantAttributeItem::CatchAll(catch_all) => {
-                                            match variant.fields.iter().collect::<Vec<_>>().as_slice() {
+                                            match variant
+                                                .fields
+                                                .iter()
+                                                .collect::<Vec<_>>()
+                                                .as_slice()
+                                            {
                                                 _ if has_catch_all_variant => {
-                                                    die!(catch_all.keyword => 
+                                                    die!(catch_all.keyword =>
                                                         "Multiple variants marked with `#[num_enum(catch_all)]`"
                                                     );
-                                                },
+                                                }
                                                 _ if has_default_variant => {
-                                                    die!(catch_all.keyword => 
+                                                    die!(catch_all.keyword =>
                                                         "Attribute `catch_all` is mutually exclusive with `default`"
                                                     );
-                                                },
-                                                [syn::Field { ty: syn::Type::Path(syn::TypePath { path, .. }), .. }] if path.is_ident(&repr) => {
+                                                }
+                                                [syn::Field {
+                                                    ty: syn::Type::Path(syn::TypePath { path, .. }),
+                                                    ..
+                                                }] if path.is_ident(&repr) => {
                                                     attr_spans.catch_all.push(catch_all.span());
                                                     is_catch_all = true;
                                                     has_catch_all_variant = true;
-                                                },
+                                                }
                                                 _ => {
                                                     die!(catch_all.keyword =>
                                                         "Variant with `catch_all` must be a tuple with exactly 1 field matching the repr type"
                                                     );
                                                 }
                                             }
-                                        },
+                                        }
                                         NumEnumVariantAttributeItem::Alternatives(alternatives) => {
                                             attr_spans.alternatives.push(alternatives.span());
                                             alternative_values.extend(alternatives.expressions);
@@ -432,7 +440,7 @@ pub fn derive_into_primitive(input: TokenStream) -> TokenStream {
     let repr = &enum_info.repr;
 
     let body = if let Some(catch_all_ident) = catch_all {
-        quote! { 
+        quote! {
             match enum_value {
                 #name::#catch_all_ident(raw) => raw,
                 rest => unsafe { *(&rest as *const #name as *const Self) }

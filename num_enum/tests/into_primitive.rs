@@ -44,7 +44,7 @@ fn catch_all() {
 
     let one: u8 = Enum::NonZero(1u8).into();
     assert_eq!(one, 1u8);
-    
+
     let two: u8 = Enum::NonZero(2u8).into();
     assert_eq!(two, 2u8);
 }

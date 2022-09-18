@@ -12,7 +12,7 @@ use syn::{
     parse_macro_input, parse_quote,
     spanned::Spanned,
     Attribute, Data, DeriveInput, Error, Expr, ExprLit, ExprUnary, Fields, Ident, Lit, LitInt,
-    LitStr, Meta, Result, UnOp,
+    Meta, Result, UnOp,
 };
 
 macro_rules! die {
@@ -944,6 +944,7 @@ fn get_crate_name() -> String {
 #[proc_macro_derive(UnsafeFromPrimitive, attributes(num_enum))]
 pub fn derive_unsafe_from_primitive(stream: TokenStream) -> TokenStream {
     let enum_info = parse_macro_input!(stream as EnumInfo);
+    let krate = Ident::new(&get_crate_name(), Span::call_site());
 
     if enum_info.has_default_variant() {
         let span = enum_info
@@ -968,26 +969,11 @@ pub fn derive_unsafe_from_primitive(stream: TokenStream) -> TokenStream {
         ref name, ref repr, ..
     } = enum_info;
 
-    let doc_string = LitStr::new(
-        &format!(
-            r#"
-Transmutes `number: {repr}` into a [`{name}`].
-
-# Safety
-
-  - `number` must represent a valid discriminant of [`{name}`]
-"#,
-            repr = repr,
-            name = name,
-        ),
-        Span::call_site(),
-    );
-
     TokenStream::from(quote! {
-        impl #name {
-            #[doc = #doc_string]
-            #[inline]
-            pub unsafe fn from_unchecked(number: #repr) -> Self {
+        impl ::#krate::UnsafeFromPrimitive for #name {
+            type Primitive = #repr;
+
+            unsafe fn from_unchecked(number: Self::Primitive) -> Self {
                 ::core::mem::transmute(number)
             }
         }

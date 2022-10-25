@@ -97,7 +97,7 @@ fn main() {
 Default variant
 ---------------
 
-Sometimes it is desirable to have an `Other` variant in an enum that acts as a kind of a wildcard matching all the value not yet covered by other variants.
+Sometimes it is desirable to have an `Other` variant in an enum that acts as a kind of a wildcard, matching all the values not yet covered by other variants.
 
 The `#[num_enum(default)]` attribute allows you to mark variant as the default.
 
@@ -162,7 +162,7 @@ Unsafely turning a primitive into an enum with from_unchecked
 If you're really certain a conversion will succeed (and have not made use of `#[num_enum(default)]` or `#[num_enum(alternatives = [..])]`
 for any of its variants), and want to avoid a small amount of overhead, you can use unsafe code to do this conversion.
 Unless you have data showing that the match statement generated in the `try_from` above is a bottleneck for you,
-you should avoid doing this, as the unsafe code has potential to cause serious memory issues in your program.
+you should avoid doing this, as the unsafe code has the potential to cause serious memory issues in your program.
 
 ```rust
 use num_enum::UnsafeFromPrimitive;

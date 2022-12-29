@@ -389,7 +389,8 @@ impl Parse for EnumInfo {
                 }
 
                 let canonical_value = discriminant.clone();
-
+                
+                let ident_clone = ident.clone();
                 variants.push(VariantInfo {
                     ident,
                     attr_spans,
@@ -400,7 +401,7 @@ impl Parse for EnumInfo {
                 });
 
                 next_discriminant = parse_quote! {
-                    #repr::wrapping_add(#discriminant, 1)
+                    #repr::wrapping_add(#ident_clone, 1)
                 };
             }
 

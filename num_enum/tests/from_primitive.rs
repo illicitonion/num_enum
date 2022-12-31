@@ -1,5 +1,3 @@
-#![cfg_attr(feature = "nightly", feature(arbitrary_enum_discriminant))]
-
 use ::std::convert::TryFrom;
 
 use ::num_enum::{FromPrimitive, TryFromPrimitive};

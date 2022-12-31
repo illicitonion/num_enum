@@ -1,5 +1,3 @@
-#![feature(arbitrary_enum_discriminant)]
-
 #[derive(Debug, Eq, PartialEq, num_enum::FromPrimitive)]
 #[repr(u8)]
 enum Enum {

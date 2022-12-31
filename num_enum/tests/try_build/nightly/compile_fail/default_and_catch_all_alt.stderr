@@ -1,5 +1,0 @@
-error: Attribute `catch_all` is mutually exclusive with `default`
- --> tests/try_build/nightly/compile_fail/default_and_catch_all_alt.rs:8:16
-  |
-8 |     #[num_enum(catch_all)]
-  |                ^^^^^^^^^

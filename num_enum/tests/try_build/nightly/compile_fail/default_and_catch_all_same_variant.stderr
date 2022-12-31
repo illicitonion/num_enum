@@ -1,5 +1,0 @@
-error: Attribute `default` is mutually exclusive with `catch_all`
- --> tests/try_build/nightly/compile_fail/default_and_catch_all_same_variant.rs:8:5
-  |
-8 |     #[default]
-  |     ^^^^^^^^^^

@@ -1,13 +1,13 @@
 extern crate proc_macro;
 
-use ::proc_macro::TokenStream;
-use ::proc_macro2::Span;
-use ::quote::{format_ident, quote};
-use ::syn::{
+use proc_macro::TokenStream;
+use proc_macro2::Span;
+use quote::{format_ident, quote};
+use syn::{
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
     spanned::Spanned,
-    Data, DeriveInput, Error, Expr, Fields, Ident, LitInt, LitStr, Meta, Result,
+    Attribute, Data, DeriveInput, Error, Expr, Fields, Ident, Lit, LitInt, LitStr, Meta, Result,
 };
 
 macro_rules! die {
@@ -24,11 +24,21 @@ macro_rules! die {
     };
 }
 
-fn literal(i: u64) -> Expr {
+fn literal(i: i128) -> Expr {
     let literal = LitInt::new(&i.to_string(), Span::call_site());
     parse_quote! {
         #literal
     }
+}
+
+fn expr_to_int(val_exp: &Expr) -> Result<i128> {
+    Ok(match val_exp {
+        Expr::Lit(ref val_exp_lit) => match val_exp_lit.lit {
+            Lit::Int(ref lit_int) => lit_int.base10_parse()?,
+            _ => die!(val_exp => "Expected integer"),
+        },
+        _ => die!(val_exp => "Expected literal"),
+    })
 }
 
 mod kw {
@@ -278,6 +288,9 @@ impl Parse for EnumInfo {
             let mut has_default_variant: bool = false;
             let mut has_catch_all_variant: bool = false;
 
+            // Vec to keep track of the used discriminants and alt values.
+            let mut val_set: Vec<i128> = vec![];
+
             let mut next_discriminant = literal(0);
             for variant in data.variants.into_iter() {
                 let ident = variant.ident.clone();
@@ -289,6 +302,8 @@ impl Parse for EnumInfo {
 
                 let mut attr_spans: AttributeSpans = Default::default();
                 let mut alternative_values: Vec<Expr> = vec![];
+                // Keep the attribute around for better error reporting.
+                let mut alt_attr_ref: Vec<&Attribute> = vec![];
 
                 // `#[num_enum(default)]` is required by `#[derive(FromPrimitive)]`
                 // and forbidden by `#[derive(UnsafeFromPrimitive)]`, so we need to
@@ -366,6 +381,7 @@ impl Parse for EnumInfo {
                                         NumEnumVariantAttributeItem::Alternatives(alternatives) => {
                                             attr_spans.alternatives.push(alternatives.span());
                                             alternative_values.extend(alternatives.expressions);
+                                            alt_attr_ref.push(attribute);
                                         }
                                     }
                                 }
@@ -388,7 +404,67 @@ impl Parse for EnumInfo {
                     }
                 }
 
-                let canonical_value = discriminant.clone();
+                let canonical_value = discriminant;
+                let canonical_value_int = expr_to_int(&canonical_value)?;
+
+                // Check for collision in the case of specified explicit discriminant.
+                // (auto discriminant skip over the used values.)
+                if val_set.binary_search(&canonical_value_int).is_ok() {
+                    die!(canonical_value => format!("This explicit discriminant '{}' collides with a value attributed to a previous variant", canonical_value_int))
+                }
+
+                // Deal with the alternative values. Sort and check them.
+                let alt_val = alternative_values
+                    .iter()
+                    .map(|val_exp| expr_to_int(val_exp))
+                    .collect::<Vec<_>>()
+                    .into_iter()
+                    .collect::<Result<Vec<_>>>()?;
+
+                debug_assert_eq!(alt_val.len(), alternative_values.len());
+
+                if alt_val.len() > 0 {
+                    let mut alt_val_sorted = alt_val.clone();
+                    alt_val_sorted.sort_unstable();
+
+                    // check if the current discriminant is not in the alternative values.
+                    if let Some(i) = alt_val.iter().position(|&x| x == canonical_value_int) {
+                        die!(&alternative_values[i] => format!("'{}' in the alternative values is already attributed as the explicit discriminant of this variant", canonical_value_int));
+                    }
+
+                    // Search for duplicates, the vec is sorted. Warn about them.
+                    if (1..alt_val_sorted.len()).any(|i| alt_val_sorted[i] == alt_val_sorted[i - 1])
+                    {
+                        let attr = *alt_attr_ref.last().unwrap();
+                        die!(attr => "There is duplication in the alternative values");
+                    }
+                    // Search if those alt_val where already attributed.
+                    // (The val_set vec is sorted)
+                    if let Some(last_upper_val) = val_set.last() {
+                        if alt_val_sorted.first().unwrap() <= last_upper_val {
+                            for (i, val) in alt_val.iter().enumerate() {
+                                if val_set.binary_search(val).is_ok() {
+                                    die!(&alternative_values[i] => format!("'{}' in the alternative values is already attributed to a previous variant", val));
+                                }
+                            }
+                        }
+                    }
+
+                    // Reconstruct the alternative_values vec of Expr but sorted.
+                    alternative_values.clear();
+                    alternative_values = alt_val_sorted
+                        .iter()
+                        .map(|val| literal(val.to_owned()))
+                        .collect();
+
+                    // Add the alternative values to the the set to keep track.
+                    val_set.extend(alt_val_sorted);
+                }
+
+                // Add the current discriminant to the the set to keep track.
+                val_set.push(canonical_value_int);
+                // Keep the set sorted.
+                val_set.sort_unstable();
 
                 variants.push(VariantInfo {
                     ident,
@@ -399,9 +475,26 @@ impl Parse for EnumInfo {
                     alternative_values,
                 });
 
-                next_discriminant = parse_quote! {
-                    #repr::wrapping_add(#discriminant, 1)
-                };
+                // Get the next value for the discriminant.
+                let mut next_val = canonical_value_int + 1;
+
+                if let Some(last_upper_val) = val_set.last() {
+                    if &next_val <= last_upper_val {
+                        // Search if this next val is not already used by a previous variant.
+                        // (The val_set vec is sorted)
+                        if let Ok(index) = val_set.binary_search(&next_val) {
+                            for i in index..val_set.len() {
+                                if next_val == val_set[i] {
+                                    next_val += 1;
+                                } else {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                next_discriminant = literal(next_val);
             }
 
             EnumInfo {

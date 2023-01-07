@@ -416,14 +416,12 @@ impl Parse for EnumInfo {
                 // Deal with the alternative values. Sort and check them.
                 let alt_val = alternative_values
                     .iter()
-                    .map(|val_exp| expr_to_int(val_exp))
-                    .collect::<Vec<_>>()
-                    .into_iter()
+                    .map(expr_to_int)
                     .collect::<Result<Vec<_>>>()?;
 
                 debug_assert_eq!(alt_val.len(), alternative_values.len());
 
-                if alt_val.len() > 0 {
+                if !alt_val.is_empty() {
                     let mut alt_val_sorted = alt_val.clone();
                     alt_val_sorted.sort_unstable();
 
@@ -451,7 +449,6 @@ impl Parse for EnumInfo {
                     }
 
                     // Reconstruct the alternative_values vec of Expr but sorted.
-                    alternative_values.clear();
                     alternative_values = alt_val_sorted
                         .iter()
                         .map(|val| literal(val.to_owned()))
@@ -479,12 +476,12 @@ impl Parse for EnumInfo {
                 let mut next_val = canonical_value_int + 1;
 
                 if let Some(last_upper_val) = val_set.last() {
-                    if &next_val <= last_upper_val {
+                    if next_val <= *last_upper_val {
                         // Search if this next val is not already used by a previous variant.
                         // (The val_set vec is sorted)
                         if let Ok(index) = val_set.binary_search(&next_val) {
-                            for i in index..val_set.len() {
-                                if next_val == val_set[i] {
+                            for val in val_set.iter().skip(index) {
+                                if next_val == *val {
                                     next_val += 1;
                                 } else {
                                     break;

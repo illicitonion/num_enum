@@ -1,5 +1,5 @@
-error: This explicit discriminant '2' collides with a value attributed to a previous variant
- --> tests/try_build/compile_fail/unreachable_patterns.rs:7:11
+error: The discriminant '2' collides with a value attributed to a previous variant
+ --> tests/try_build/compile_fail/unreachable_patterns.rs:7:5
   |
 7 |     Two = 2,
-  |           ^
+  |     ^^^

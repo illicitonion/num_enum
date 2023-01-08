@@ -3,6 +3,7 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{format_ident, quote};
+use std::collections::BTreeSet;
 use syn::{
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
@@ -289,7 +290,7 @@ impl Parse for EnumInfo {
             let mut has_catch_all_variant: bool = false;
 
             // Vec to keep track of the used discriminants and alt values.
-            let mut val_set: Vec<i128> = vec![];
+            let mut val_set: BTreeSet<i128> = BTreeSet::new();
 
             let mut next_discriminant = literal(0);
             for variant in data.variants.into_iter() {
@@ -407,13 +408,12 @@ impl Parse for EnumInfo {
                 let canonical_value = discriminant;
                 let canonical_value_int = expr_to_int(&canonical_value)?;
 
-                // Check for collision in the case of specified explicit discriminant.
-                // (auto discriminant skip over the used values.)
-                if val_set.binary_search(&canonical_value_int).is_ok() {
-                    die!(canonical_value => format!("This explicit discriminant '{}' collides with a value attributed to a previous variant", canonical_value_int))
+                // Check for collision.
+                if val_set.contains(&canonical_value_int) {
+                    die!(ident => format!("The discriminant '{}' collides with a value attributed to a previous variant", canonical_value_int))
                 }
 
-                // Deal with the alternative values. Sort and check them.
+                // Deal with the alternative values.
                 let alt_val = alternative_values
                     .iter()
                     .map(expr_to_int)
@@ -424,10 +424,11 @@ impl Parse for EnumInfo {
                 if !alt_val.is_empty() {
                     let mut alt_val_sorted = alt_val.clone();
                     alt_val_sorted.sort_unstable();
+                    let alt_val_sorted = alt_val_sorted;
 
                     // check if the current discriminant is not in the alternative values.
                     if let Some(i) = alt_val.iter().position(|&x| x == canonical_value_int) {
-                        die!(&alternative_values[i] => format!("'{}' in the alternative values is already attributed as the explicit discriminant of this variant", canonical_value_int));
+                        die!(&alternative_values[i] => format!("'{}' in the alternative values is already attributed as the discriminant of this variant", canonical_value_int));
                     }
 
                     // Search for duplicates, the vec is sorted. Warn about them.
@@ -437,11 +438,11 @@ impl Parse for EnumInfo {
                         die!(attr => "There is duplication in the alternative values");
                     }
                     // Search if those alt_val where already attributed.
-                    // (The val_set vec is sorted)
+                    // (The val_set is BTreeSet, and last() is the is the maximum in the set.)
                     if let Some(last_upper_val) = val_set.last() {
                         if alt_val_sorted.first().unwrap() <= last_upper_val {
-                            for (i, val) in alt_val.iter().enumerate() {
-                                if val_set.binary_search(val).is_ok() {
+                            for (i, val) in alt_val_sorted.iter().enumerate() {
+                                if val_set.contains(val) {
                                     die!(&alternative_values[i] => format!("'{}' in the alternative values is already attributed to a previous variant", val));
                                 }
                             }
@@ -459,9 +460,8 @@ impl Parse for EnumInfo {
                 }
 
                 // Add the current discriminant to the the set to keep track.
-                val_set.push(canonical_value_int);
-                // Keep the set sorted.
-                val_set.sort_unstable();
+                let newly_inserted = val_set.insert(canonical_value_int);
+                debug_assert!(newly_inserted);
 
                 variants.push(VariantInfo {
                     ident,
@@ -473,25 +473,7 @@ impl Parse for EnumInfo {
                 });
 
                 // Get the next value for the discriminant.
-                let mut next_val = canonical_value_int + 1;
-
-                if let Some(last_upper_val) = val_set.last() {
-                    if next_val <= *last_upper_val {
-                        // Search if this next val is not already used by a previous variant.
-                        // (The val_set vec is sorted)
-                        if let Ok(index) = val_set.binary_search(&next_val) {
-                            for val in val_set.iter().skip(index) {
-                                if next_val == *val {
-                                    next_val += 1;
-                                } else {
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                next_discriminant = literal(next_val);
+                next_discriminant = literal(canonical_value_int + 1);
             }
 
             EnumInfo {

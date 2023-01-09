@@ -321,6 +321,7 @@ fn alternative_values_and_default_value() {
         One = 1,
         #[num_enum(alternatives = [3])]
         TwoOrThree = 2,
+        Four = 4,
     }
 
     let zero: Result<Enum, _> = 0u8.try_into();
@@ -336,7 +337,10 @@ fn alternative_values_and_default_value() {
     assert_eq!(three, Ok(Enum::TwoOrThree));
 
     let four: Result<Enum, _> = 4u8.try_into();
-    assert_eq!(four, Ok(Enum::Zero));
+    assert_eq!(four, Ok(Enum::Four));
+
+    let five: Result<Enum, _> = 5u8.try_into();
+    assert_eq!(five, Ok(Enum::Zero));
 }
 
 #[test]

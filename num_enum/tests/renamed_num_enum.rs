@@ -1,7 +1,7 @@
 #[test]
 fn no_std() {
     assert!(::std::process::Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "--manifest-path",
             concat!(
@@ -17,7 +17,7 @@ fn no_std() {
 #[test]
 fn std() {
     assert!(::std::process::Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "--manifest-path",
             concat!(

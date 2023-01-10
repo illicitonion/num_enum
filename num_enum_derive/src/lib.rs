@@ -438,8 +438,8 @@ impl Parse for EnumInfo {
                         die!(attr => "There is duplication in the alternative values");
                     }
                     // Search if those alt_val where already attributed.
-                    // (The val_set is BTreeSet, and last() is the is the maximum in the set.)
-                    if let Some(last_upper_val) = val_set.last() {
+                    // (The val_set is BTreeSet, and iter().next_back() is the is the maximum in the set.)
+                    if let Some(last_upper_val) = val_set.iter().next_back() {
                         if alt_val_sorted.first().unwrap() <= last_upper_val {
                             for (i, val) in alt_val_sorted.iter().enumerate() {
                                 if val_set.contains(val) {

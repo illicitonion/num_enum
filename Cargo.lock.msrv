@@ -143,6 +143,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "stress_tests"
+version = "0.1.0"
+dependencies = [
+ "num_enum",
+ "trybuild",
+]
+
+[[package]]
 name = "syn"
 version = "1.0.84"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -16,6 +16,7 @@ jobs:
         with:
           profile: minimal
           toolchain: 1.54.0
+          target: thumbv6m-none-eabi
       - name: Use MSRV Cargo.lock
         run: cp Cargo.lock.msrv Cargo.lock
       - name: Build with MSRV

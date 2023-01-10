@@ -179,6 +179,23 @@ struct EnumInfo {
 }
 
 impl EnumInfo {
+    /// Returns whether the number of variants (ignoring defaults, catch-alls, etc) is the same as
+    /// the capacity of the repr.
+    fn is_naturally_exhaustive(&self) -> Result<bool> {
+        let repr_str = self.repr.to_string();
+        if !repr_str.is_empty() {
+            let suffix = repr_str
+                .strip_prefix('i')
+                .or_else(|| repr_str.strip_prefix('u'));
+            if let Some(suffix) = suffix {
+                if let Ok(bits) = suffix.parse::<u8>() {
+                    return Ok(1 << bits == self.variants.len());
+                }
+            }
+        }
+        die!(self.repr.clone() => "Failed to parse repr into bit size");
+    }
+
     fn has_default_variant(&self) -> bool {
         self.default().is_some()
     }
@@ -563,15 +580,25 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
     let enum_info: EnumInfo = parse_macro_input!(input);
     let krate = Ident::new(&get_crate_name(), Span::call_site());
 
-    let catch_all_body = if let Some(default_ident) = enum_info.default() {
-        quote! { Self::#default_ident }
-    } else if let Some(catch_all_ident) = enum_info.catch_all() {
-        quote! { Self::#catch_all_ident(number) }
-    } else {
-        let span = Span::call_site();
-        let message =
-            "#[derive(FromPrimitive)] requires a variant marked with `#[default]`, `#[num_enum(default)]`, or `#[num_enum(catch_all)`";
-        return syn::Error::new(span, message).to_compile_error().into();
+    let is_naturally_exhaustive = enum_info.is_naturally_exhaustive();
+    let catch_all_body = match is_naturally_exhaustive {
+        Ok(is_naturally_exhaustive) => {
+            if is_naturally_exhaustive {
+                quote! { unreachable!("exhaustive enum") }
+            } else if let Some(default_ident) = enum_info.default() {
+                quote! { Self::#default_ident }
+            } else if let Some(catch_all_ident) = enum_info.catch_all() {
+                quote! { Self::#catch_all_ident(number) }
+            } else {
+                let span = Span::call_site();
+                let message =
+                    "#[derive(num_enum::FromPrimitive)] requires enum to be exhaustive, or a variant marked with `#[default]`, `#[num_enum(default)]`, or `#[num_enum(catch_all)`";
+                return syn::Error::new(span, message).to_compile_error().into();
+            }
+        }
+        Err(err) => {
+            return err.to_compile_error().into();
+        }
     };
 
     let EnumInfo {
@@ -881,7 +908,7 @@ pub fn derive_default(stream: TokenStream) -> TokenStream {
         None => {
             let span = Span::call_site();
             let message =
-                "#[derive(num_enum::Default)] requires a variant marked with `#[default]` or `#[num_enum(default)]`";
+                "#[derive(num_enum::Default)] requires enum to be exhaustive, or a variant marked with `#[default]` or `#[num_enum(default)]`";
             return syn::Error::new(span, message).to_compile_error().into();
         }
     };

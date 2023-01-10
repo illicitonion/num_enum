@@ -59,6 +59,12 @@ jobs:
           command: build
           args: --manifest-path=serde_example/Cargo.toml --target thumbv6m-none-eabi -p serde_example --lib --no-default-features
           toolchain: ${{ matrix.toolchain }}
+      - name: Regression test for https://github.com/illicitonion/num_enum/issues/83
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path=stress_tests/Cargo.toml
+          toolchain: ${{ matrix.toolchain }}
       - name: Doc
         uses: actions-rs/cargo@v1
         with:

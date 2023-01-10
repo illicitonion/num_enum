@@ -1,0 +1,16 @@
+[package]
+name = "stress_tests"
+version = "0.1.0"
+authors = [
+  "Daniel Wagner-Hall <dawagner@gmail.com>",
+  "Daniel Henry-Mantilla <daniel.henry.mantilla@gmail.com>",
+  "Vincent Esche <regexident@gmail.com>",
+]
+description = "Tests using large enums. Regression test for https://github.com/illicitonion/num_enum/issues/83."
+edition = "2018"
+repository = "https://github.com/illicitonion/num_enum"
+publish = false
+
+[dev-dependencies]
+num_enum = { path = "../num_enum" }
+trybuild = "1.0.31"

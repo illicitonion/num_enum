@@ -16,6 +16,8 @@ jobs:
         with:
           profile: minimal
           toolchain: 1.54.0
+      - name: Use MSRV Cargo.lock
+        run: cp Cargo.lock.msrv Cargo.lock
       - name: Build with MSRV
         uses: actions-rs/cargo@v1
         with:

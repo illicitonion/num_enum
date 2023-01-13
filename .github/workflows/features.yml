@@ -1,0 +1,26 @@
+name: Check for unknown features
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+jobs:
+  unknown-features:
+    name: Check for unknown features
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v2
+      - name: Fetch toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+      - name: Check for unknown features
+        env:
+          RUSTFLAGS: "-D unexpected-cfgs"
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: -Z unstable-options -Z check-cfg=features --tests
+          toolchain: nightly

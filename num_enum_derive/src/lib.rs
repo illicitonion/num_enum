@@ -8,8 +8,8 @@ use syn::{
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
     spanned::Spanned,
-    Attribute, Data, DeriveInput, Error, Expr, ExprUnary, Fields, Ident, Lit, LitInt, LitStr, Meta,
-    Result, UnOp,
+    Attribute, Data, DeriveInput, Error, Expr, ExprLit, ExprUnary, Fields, Ident, Lit, LitInt,
+    LitStr, Meta, Result, UnOp,
 };
 
 macro_rules! die {
@@ -27,10 +27,10 @@ macro_rules! die {
 }
 
 fn literal(i: i128) -> Expr {
-    let literal = LitInt::new(&i.to_string(), Span::call_site());
-    parse_quote! {
-        #literal
-    }
+    Expr::Lit(ExprLit {
+        lit: Lit::Int(LitInt::new(&i.to_string(), Span::call_site())),
+        attrs: vec![],
+    })
 }
 
 enum DiscriminantValue {
@@ -39,26 +39,28 @@ enum DiscriminantValue {
 }
 
 fn parse_discriminant(val_exp: &Expr) -> Result<DiscriminantValue> {
-    match val_exp {
-        Expr::Lit(ref val_exp_lit) => {
-            if let Lit::Int(ref lit_int) = val_exp_lit.lit {
-                return Ok(DiscriminantValue::Literal(lit_int.base10_parse()?));
-            }
-        }
-        Expr::Unary(ExprUnary {
-            op: UnOp::Neg(..),
-            expr,
-            ..
-        }) => {
-            if let Expr::Lit(ref val_exp_lit) = **expr {
-                if let Lit::Int(ref lit_int) = val_exp_lit.lit {
-                    return Ok(DiscriminantValue::Literal(-lit_int.base10_parse()?));
-                }
-            }
-        }
-        _ => {}
+    let mut sign = 1;
+    let mut unsigned_expr = val_exp;
+    if let Expr::Unary(ExprUnary {
+        op: UnOp::Neg(..),
+        expr,
+        ..
+    }) = val_exp
+    {
+        unsigned_expr = expr;
+        sign = -1;
     }
-    Ok(DiscriminantValue::Expr(val_exp.clone()))
+    if let Expr::Lit(ExprLit {
+        lit: Lit::Int(ref lit_int),
+        ..
+    }) = unsigned_expr
+    {
+        Ok(DiscriminantValue::Literal(
+            sign * lit_int.base10_parse::<i128>()?,
+        ))
+    } else {
+        Ok(DiscriminantValue::Expr(val_exp.clone()))
+    }
 }
 
 mod kw {
@@ -535,16 +537,7 @@ impl Parse for EnumInfo {
 
                 // Get the next value for the discriminant.
                 next_discriminant = match discriminant_value {
-                    DiscriminantValue::Literal(int_value) => {
-                        if int_value >= -1 {
-                            literal(int_value + 1)
-                        } else {
-                            let value = literal((int_value + 1).abs());
-                            parse_quote! {
-                                -#value
-                            }
-                        }
-                    }
+                    DiscriminantValue::Literal(int_value) => literal(int_value.wrapping_add(1)),
                     DiscriminantValue::Expr(expr) => {
                         parse_quote! {
                             #repr::wrapping_add(#expr, 1)

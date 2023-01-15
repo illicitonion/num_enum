@@ -465,7 +465,7 @@ impl Parse for EnumInfo {
                 debug_assert_eq!(alternate_values.len(), raw_alternative_values.len());
 
                 if !alternate_values.is_empty() {
-                    let mut sorted_alternate_int_values = alternate_values
+                    let alternate_int_values = alternate_values
                         .into_iter()
                         .map(|v| {
                             match v {
@@ -480,13 +480,15 @@ impl Parse for EnumInfo {
                             }
                         })
                         .collect::<Result<Vec<i128>>>()?;
+                    let mut sorted_alternate_int_values = alternate_int_values.clone();
                     sorted_alternate_int_values.sort_unstable();
                     let sorted_alternate_int_values = sorted_alternate_int_values;
 
                     // Check if the current discriminant is not in the alternative values.
                     if let DiscriminantValue::Literal(canonical_value_int) = discriminant_value {
-                        if let Ok(index) =
-                            sorted_alternate_int_values.binary_search(&canonical_value_int)
+                        if let Some(index) = alternate_int_values
+                            .iter()
+                            .position(|&x| x == canonical_value_int)
                         {
                             die!(&raw_alternative_values[index] => format!("'{}' in the alternative values is already attributed as the discriminant of this variant", canonical_value_int));
                         }
@@ -503,9 +505,9 @@ impl Parse for EnumInfo {
                     // (discriminant_int_val_set is BTreeSet, and iter().next_back() is the is the maximum in the set.)
                     if let Some(last_upper_val) = discriminant_int_val_set.iter().next_back() {
                         if sorted_alternate_int_values.first().unwrap() <= last_upper_val {
-                            for (i, val) in sorted_alternate_int_values.iter().enumerate() {
+                            for (index, val) in alternate_int_values.iter().enumerate() {
                                 if discriminant_int_val_set.contains(val) {
-                                    die!(&raw_alternative_values[i] => format!("'{}' in the alternative values is already attributed to a previous variant", val));
+                                    die!(&raw_alternative_values[index] => format!("'{}' in the alternative values is already attributed to a previous variant", val));
                                 }
                             }
                         }

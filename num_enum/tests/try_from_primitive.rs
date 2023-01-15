@@ -120,8 +120,79 @@ fn wrong_order() {
     assert_eq!(four, Ok(Enum::Four));
 }
 
-#[cfg(feature = "complex-expression")]
+#[test]
+fn negative_values() {
+    #[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+    #[repr(i8)]
+    enum Enum {
+        MinusTwo = -2,
+        MinusOne = -1,
+        Zero = 0,
+        One = 1,
+        Two = 2,
+    }
+
+    let minus_two: Result<Enum, _> = (-2i8).try_into();
+    assert_eq!(minus_two, Ok(Enum::MinusTwo));
+
+    let minus_one: Result<Enum, _> = (-1i8).try_into();
+    assert_eq!(minus_one, Ok(Enum::MinusOne));
+
+    let zero: Result<Enum, _> = 0i8.try_into();
+    assert_eq!(zero, Ok(Enum::Zero));
+
+    let one: Result<Enum, _> = 1i8.try_into();
+    assert_eq!(one, Ok(Enum::One));
+
+    let two: Result<Enum, _> = 2i8.try_into();
+    assert_eq!(two, Ok(Enum::Two));
+}
+
+#[test]
+fn discriminant_expressions() {
+    const ONE: u8 = 1;
+
+    #[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+    #[repr(u8)]
+    enum Enum {
+        Zero,
+        One = ONE,
+        Two,
+        Four = 4u8,
+        Five,
+        Six = ONE + ONE + 2u8 + 2,
+    }
+
+    let zero: Result<Enum, _> = 0u8.try_into();
+    assert_eq!(zero, Ok(Enum::Zero));
+
+    let one: Result<Enum, _> = 1u8.try_into();
+    assert_eq!(one, Ok(Enum::One));
+
+    let two: Result<Enum, _> = 2u8.try_into();
+    assert_eq!(two, Ok(Enum::Two));
+
+    let three: Result<Enum, _> = 3u8.try_into();
+    assert_eq!(
+        three.unwrap_err().to_string(),
+        "No discriminant in enum `Enum` matches the value `3`",
+    );
+
+    let four: Result<Enum, _> = 4u8.try_into();
+    assert_eq!(four, Ok(Enum::Four));
+
+    let five: Result<Enum, _> = 5u8.try_into();
+    assert_eq!(five, Ok(Enum::Five));
+
+    let six: Result<Enum, _> = 6u8.try_into();
+    assert_eq!(six, Ok(Enum::Six));
+}
+
+#[cfg(feature = "complex-expressions")]
 mod complex {
+    use num_enum::TryFromPrimitive;
+    use std::convert::TryInto;
+
     const ONE: u8 = 1;
 
     #[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
@@ -261,26 +332,29 @@ fn error_variant_is_allowed() {
 #[test]
 fn alternative_values() {
     #[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
-    #[repr(u8)]
+    #[repr(i8)]
     enum Enum {
         Zero = 0,
-        #[num_enum(alternatives = [2, 3])]
-        OneTwoOrThree = 1,
+        #[num_enum(alternatives = [-1, 2, 3])]
+        OneTwoThreeOrMinusOne = 1,
     }
 
-    let zero: Result<Enum, _> = 0u8.try_into();
+    let minus_one: Result<Enum, _> = (-1i8).try_into();
+    assert_eq!(minus_one, Ok(Enum::OneTwoThreeOrMinusOne));
+
+    let zero: Result<Enum, _> = 0i8.try_into();
     assert_eq!(zero, Ok(Enum::Zero));
 
-    let one: Result<Enum, _> = 1u8.try_into();
-    assert_eq!(one, Ok(Enum::OneTwoOrThree));
+    let one: Result<Enum, _> = 1i8.try_into();
+    assert_eq!(one, Ok(Enum::OneTwoThreeOrMinusOne));
 
-    let two: Result<Enum, _> = 2u8.try_into();
-    assert_eq!(two, Ok(Enum::OneTwoOrThree));
+    let two: Result<Enum, _> = 2i8.try_into();
+    assert_eq!(two, Ok(Enum::OneTwoThreeOrMinusOne));
 
-    let three: Result<Enum, _> = 3u8.try_into();
-    assert_eq!(three, Ok(Enum::OneTwoOrThree));
+    let three: Result<Enum, _> = 3i8.try_into();
+    assert_eq!(three, Ok(Enum::OneTwoThreeOrMinusOne));
 
-    let four: Result<Enum, _> = 4u8.try_into();
+    let four: Result<Enum, _> = 4i8.try_into();
     assert_eq!(
         four.unwrap_err().to_string(),
         "No discriminant in enum `Enum` matches the value `4`"

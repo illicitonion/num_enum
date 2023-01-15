@@ -27,7 +27,6 @@ fn simple() {
 }
 
 #[test]
-#[cfg(feature = "nightly")]
 fn catch_all() {
     #[derive(Debug, Eq, PartialEq, IntoPrimitive)]
     #[repr(u8)]

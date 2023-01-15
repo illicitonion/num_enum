@@ -77,7 +77,6 @@ fn from_primitive_number() {
 }
 
 #[test]
-#[cfg(feature = "nightly")]
 fn from_primitive_number_catch_all() {
     #[derive(Debug, Eq, PartialEq, FromPrimitive)]
     #[repr(u8)]

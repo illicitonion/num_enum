@@ -1,4 +1,4 @@
-error[E0119]: conflicting implementations of trait `std::default::Default` for type `Number`
+error[E0119]: conflicting implementations of trait `Default` for type `Number`
  --> tests/try_build/compile_fail/conflicting_default.rs:1:19
   |
 1 | #[derive(Default, num_enum::Default)]

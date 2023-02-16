@@ -209,8 +209,9 @@ impl EnumInfo {
                 .strip_prefix('i')
                 .or_else(|| repr_str.strip_prefix('u'));
             if let Some(suffix) = suffix {
-                if let Ok(bits) = suffix.parse::<u8>() {
-                    return Ok(1 << bits == self.variants.len());
+                if let Ok(bits) = suffix.parse::<u32>() {
+                    let variants = 1usize.checked_shl(bits);
+                    return Ok(variants.map_or(false, |v| v == self.variants.len()))
                 }
             }
         }

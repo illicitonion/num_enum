@@ -211,7 +211,7 @@ impl EnumInfo {
             if let Some(suffix) = suffix {
                 if let Ok(bits) = suffix.parse::<u32>() {
                     let variants = 1usize.checked_shl(bits);
-                    return Ok(variants.map_or(false, |v| v == self.variants.len()))
+                    return Ok(variants.map_or(false, |v| v == self.variants.len()));
                 }
             }
         }

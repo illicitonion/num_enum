@@ -9,6 +9,26 @@ mod num_enum {}
 mod std {}
 
 #[test]
+fn has_from_primitive_number_u64() {
+    #[derive(Debug, Eq, PartialEq, FromPrimitive)]
+    #[repr(u64)]
+    enum Enum {
+        Zero = 0,
+        #[num_enum(default)]
+        NonZero = 1,
+    }
+
+    let zero = Enum::from_primitive(0_u64);
+    assert_eq!(zero, Enum::Zero);
+
+    let one = Enum::from_primitive(1_u64);
+    assert_eq!(one, Enum::NonZero);
+
+    let two = Enum::from_primitive(2_u64);
+    assert_eq!(two, Enum::NonZero);
+}
+
+#[test]
 fn has_from_primitive_number() {
     #[derive(Debug, Eq, PartialEq, FromPrimitive)]
     #[repr(u8)]

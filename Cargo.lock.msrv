@@ -28,7 +28,7 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "num_enum"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "anyhow",
  "num_enum_derive",
@@ -39,7 +39,7 @@ dependencies = [
 
 [[package]]
 name = "num_enum_derive"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",

@@ -11,6 +11,7 @@ use syn::{
     Attribute, Data, DeriveInput, Error, Expr, ExprLit, ExprUnary, Fields, Ident, Lit, LitInt,
     LitStr, Meta, Result, UnOp,
 };
+use syn::punctuated::Punctuated;
 
 macro_rules! die {
     ($spanned:expr=>
@@ -69,8 +70,47 @@ mod kw {
     syn::custom_keyword!(alternatives);
 }
 
+struct NumEnumCrateAttribute {
+    path: syn::Path,
+}
+
+impl Parse for NumEnumCrateAttribute {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let _: syn::token::Crate = input.parse()?;
+        let _: syn::token::Eq = input.parse()?;
+        let path = syn::Path::parse_mod_style(input)?;
+        Ok(Self { path })
+    }
+}
+
+enum NumEnumAttributeItem {
+    Crate(NumEnumCrateAttribute),
+}
+
+impl Parse for NumEnumAttributeItem {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let lookahead = input.lookahead1();
+        if lookahead.peek(syn::token::Crate) {
+            input.parse().map(NumEnumAttributeItem::Crate)
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
+struct NumEnumAttributes {
+    items: Punctuated<NumEnumAttributeItem, syn::Token![,]>,
+}
+
+impl Parse for NumEnumAttributes {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let items = input.parse_terminated(NumEnumAttributeItem::parse)?;
+        Ok(Self { items })
+    }
+}
+
 struct NumEnumVariantAttributes {
-    items: syn::punctuated::Punctuated<NumEnumVariantAttributeItem, syn::Token![,]>,
+    items: Punctuated<NumEnumVariantAttributeItem, syn::Token![,]>,
 }
 
 impl Parse for NumEnumVariantAttributes {
@@ -142,7 +182,7 @@ struct VariantAlternativesAttribute {
     keyword: kw::alternatives,
     _eq_token: syn::Token![=],
     _bracket_token: syn::token::Bracket,
-    expressions: syn::punctuated::Punctuated<Expr, syn::Token![,]>,
+    expressions: Punctuated<Expr, syn::Token![,]>,
 }
 
 impl Parse for VariantAlternativesAttribute {
@@ -196,6 +236,7 @@ impl VariantInfo {
 struct EnumInfo {
     name: Ident,
     repr: Ident,
+    crate_path: Option<syn::Path>,
     variants: Vec<VariantInfo>,
 }
 
@@ -291,37 +332,53 @@ impl Parse for EnumInfo {
                 Data::Struct(data) => die!(data.struct_token => "Expected enum but found struct"),
             };
 
-            let repr: Ident = {
-                let mut attrs = input.attrs.into_iter();
-                loop {
-                    if let Some(attr) = attrs.next() {
-                        if let Ok(Meta::List(meta_list)) = attr.parse_meta() {
-                            if let Some(ident) = meta_list.path.get_ident() {
-                                if ident == "repr" {
-                                    let mut nested = meta_list.nested.iter();
-                                    if nested.len() != 1 {
-                                        die!(attr =>
-                                            "Expected exactly one `repr` argument"
-                                        );
-                                    }
-                                    let repr = nested.next().unwrap();
-                                    let repr: Ident = parse_quote! {
-                                        #repr
-                                    };
-                                    if repr == "C" {
-                                        die!(repr =>
-                                            "repr(C) doesn't have a well defined size"
-                                        );
-                                    } else {
-                                        break repr;
-                                    }
+            let attrs = input.attrs.into_iter();
+            let mut found_repr = None;
+            let mut crate_path = None;
+            for attr in attrs {
+                if attr.path.is_ident("num_enum") {
+                    for item in attr.parse_args_with(NumEnumAttributes::parse)?.items {
+                        match item {
+                            NumEnumAttributeItem::Crate(item) => {
+                                if crate_path.is_some() {
+                                    die!(attr.tokens => "Expected exactly one `crate` argument");
                                 }
+                                crate_path = Some(item.path);
                             }
                         }
-                    } else {
-                        die!("Missing `#[repr({Integer})]` attribute");
+                    }
+                } else if let Ok(Meta::List(meta_list)) = attr.parse_meta() {
+                    if let Some(ident) = meta_list.path.get_ident() {
+                        if ident == "repr" {
+                            let mut nested = meta_list.nested.iter();
+                            if nested.len() != 1 {
+                                die!(attr =>
+                                    "Expected exactly one `repr` argument"
+                                );
+                            }
+                            let repr = nested.next().unwrap();
+                            let repr: Ident = parse_quote! {
+                                #repr
+                            };
+                            if repr == "C" {
+                                die!(repr =>
+                                    "repr(C) doesn't have a well defined size"
+                                );
+                            } else if found_repr.is_none() {
+                                found_repr = Some(repr);
+                            } else {
+                                die!(repr =>
+                                    "Expected exactly one `repr` argument"
+                                );
+                            }
+                        }
                     }
                 }
+            }
+            let repr = if let Some(repr) = found_repr {
+                repr
+            } else {
+                die!("Missing `#[repr({Integer})]` attribute");
             };
 
             let mut variants: Vec<VariantInfo> = vec![];
@@ -436,9 +493,10 @@ impl Parse for EnumInfo {
                 }
 
                 if !is_catch_all {
+                    use quote::ToTokens;
                     match &variant.fields {
                         Fields::Named(_) | Fields::Unnamed(_) => {
-                            die!(variant => format!("`{}` only supports unit variants (with no associated data), but `{}::{}` was not a unit variant.", get_crate_name(), name, ident));
+                            die!(variant => format!("`{}` only supports unit variants (with no associated data), but `{}::{}` was not a unit variant.", get_crate_name(crate_path).to_token_stream(), name, ident));
                         }
                         Fields::Unit => {}
                     }
@@ -553,6 +611,7 @@ impl Parse for EnumInfo {
                 name,
                 repr,
                 variants,
+                crate_path,
             }
         })
     }
@@ -634,7 +693,7 @@ pub fn derive_into_primitive(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(FromPrimitive, attributes(num_enum, default, catch_all))]
 pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
     let enum_info: EnumInfo = parse_macro_input!(input);
-    let krate = Ident::new(&get_crate_name(), Span::call_site());
+    let krate = get_crate_name(enum_info.crate_path.clone());
 
     let is_naturally_exhaustive = enum_info.is_naturally_exhaustive();
     let catch_all_body = match is_naturally_exhaustive {
@@ -668,7 +727,7 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
     debug_assert_eq!(variant_idents.len(), variant_expressions.len());
 
     TokenStream::from(quote! {
-        impl ::#krate::FromPrimitive for #name {
+        impl #krate::FromPrimitive for #name {
             type Primitive = #repr;
 
             fn from_primitive(number: Self::Primitive) -> Self {
@@ -697,13 +756,13 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
             fn from (
                 number: #repr,
             ) -> Self {
-                ::#krate::FromPrimitive::from_primitive(number)
+                #krate::FromPrimitive::from_primitive(number)
             }
         }
 
         // The Rust stdlib will implement `#name: From<#repr>` for us for free!
 
-        impl ::#krate::TryFromPrimitive for #name {
+        impl #krate::TryFromPrimitive for #name {
             type Primitive = #repr;
 
             const NAME: &'static str = stringify!(#name);
@@ -713,10 +772,10 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
                 number: Self::Primitive,
             ) -> ::core::result::Result<
                 Self,
-                ::#krate::TryFromPrimitiveError<Self>,
+                #krate::TryFromPrimitiveError<Self>,
             >
             {
-                Ok(::#krate::FromPrimitive::from_primitive(number))
+                Ok(#krate::FromPrimitive::from_primitive(number))
             }
         }
     })
@@ -750,8 +809,7 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(TryFromPrimitive, attributes(num_enum))]
 pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
     let enum_info: EnumInfo = parse_macro_input!(input);
-    let krate = Ident::new(&get_crate_name(), Span::call_site());
-
+    let krate = get_crate_name(enum_info.crate_path.clone());
     let EnumInfo {
         ref name, ref repr, ..
     } = enum_info;
@@ -773,14 +831,14 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
         None => {
             quote! {
                 _ => ::core::result::Result::Err(
-                    ::#krate::TryFromPrimitiveError { number }
+                    #krate::TryFromPrimitiveError { number }
                 )
             }
         }
     };
 
     TokenStream::from(quote! {
-        impl ::#krate::TryFromPrimitive for #name {
+        impl #krate::TryFromPrimitive for #name {
             type Primitive = #repr;
 
             const NAME: &'static str = stringify!(#name);
@@ -789,7 +847,7 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
                 number: Self::Primitive,
             ) -> ::core::result::Result<
                 Self,
-                ::#krate::TryFromPrimitiveError<Self>
+                #krate::TryFromPrimitiveError<Self>
             > {
                 // Use intermediate const(s) so that enums defined like
                 // `Two = ONE + 1u8` work properly.
@@ -812,32 +870,36 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
         }
 
         impl ::core::convert::TryFrom<#repr> for #name {
-            type Error = ::#krate::TryFromPrimitiveError<Self>;
+            type Error = #krate::TryFromPrimitiveError<Self>;
 
             #[inline]
             fn try_from (
                 number: #repr,
-            ) -> ::core::result::Result<Self, ::#krate::TryFromPrimitiveError<Self>>
+            ) -> ::core::result::Result<Self, #krate::TryFromPrimitiveError<Self>>
             {
-                ::#krate::TryFromPrimitive::try_from_primitive(number)
+                #krate::TryFromPrimitive::try_from_primitive(number)
             }
         }
     })
 }
 
 #[cfg(feature = "proc-macro-crate")]
-fn get_crate_name() -> String {
-    let found_crate = proc_macro_crate::crate_name("num_enum").unwrap_or_else(|err| {
-        eprintln!("Warning: {}\n    => defaulting to `num_enum`", err,);
-        proc_macro_crate::FoundCrate::Itself
-    });
+fn get_crate_name(path: Option<syn::Path>) -> syn::Path {
+    path.unwrap_or_else(|| {
+        let found_crate = proc_macro_crate::crate_name("num_enum").unwrap_or_else(|err| {
+            eprintln!("Warning: {}\n    => defaulting to `num_enum`", err,);
+            proc_macro_crate::FoundCrate::Itself
+        });
 
-    match found_crate {
-        proc_macro_crate::FoundCrate::Itself => String::from("num_enum"),
-        proc_macro_crate::FoundCrate::Name(name) => name,
-    }
+        match found_crate {
+            proc_macro_crate::FoundCrate::Itself => parse_quote!(::num_enum),
+            proc_macro_crate::FoundCrate::Name(name) => {
+                let krate = format_ident!("{}", name);
+                parse_quote!( :: #krate )
+            }
+        }
+    })
 }
-
 // Don't depend on proc-macro-crate in no_std environments because it causes an awkward dependency
 // on serde with std.
 //
@@ -845,8 +907,8 @@ fn get_crate_name() -> String {
 //
 // See https://github.com/illicitonion/num_enum/issues/18
 #[cfg(not(feature = "proc-macro-crate"))]
-fn get_crate_name() -> String {
-    String::from("num_enum")
+fn get_crate_name(path: Option<syn::Path>) -> syn::Path {
+    path.unwrap_or_else(|| parse_quote!(::num_enum))
 }
 
 /// Generates a `unsafe fn from_unchecked (number: Primitive) -> Self`

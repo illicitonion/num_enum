@@ -1,0 +1,47 @@
+error[E0405]: cannot find trait `TryFromPrimitive` in crate `std`
+ --> tests/try_build/compile_fail/bad_crate_path.rs:1:32
+  |
+1 | #[derive(Debug, Eq, PartialEq, ::num_enum::TryFromPrimitive)]
+  |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in `std`
+  |
+  = note: this error originates in the derive macro `::num_enum::TryFromPrimitive` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider importing this trait
+  |
+1 | use num_enum::TryFromPrimitive;
+  |
+
+error[E0412]: cannot find type `TryFromPrimitiveError` in crate `std`
+ --> tests/try_build/compile_fail/bad_crate_path.rs:1:32
+  |
+1 | #[derive(Debug, Eq, PartialEq, ::num_enum::TryFromPrimitive)]
+  |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in `std`
+  |
+  = note: this error originates in the derive macro `::num_enum::TryFromPrimitive` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider importing this struct
+  |
+1 | use num_enum::TryFromPrimitiveError;
+  |
+
+error[E0422]: cannot find struct, variant or union type `TryFromPrimitiveError` in crate `std`
+ --> tests/try_build/compile_fail/bad_crate_path.rs:1:32
+  |
+1 | #[derive(Debug, Eq, PartialEq, ::num_enum::TryFromPrimitive)]
+  |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in `std`
+  |
+  = note: this error originates in the derive macro `::num_enum::TryFromPrimitive` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider importing this struct
+  |
+1 | use num_enum::TryFromPrimitiveError;
+  |
+
+error[E0433]: failed to resolve: could not find `TryFromPrimitive` in `std`
+ --> tests/try_build/compile_fail/bad_crate_path.rs:1:32
+  |
+1 | #[derive(Debug, Eq, PartialEq, ::num_enum::TryFromPrimitive)]
+  |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in `std`
+  |
+  = note: this error originates in the derive macro `::num_enum::TryFromPrimitive` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider importing this trait
+  |
+1 | use num_enum::TryFromPrimitive;
+  |

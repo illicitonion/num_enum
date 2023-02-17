@@ -476,7 +476,7 @@ impl Parse for EnumInfo {
                                     // We could probably allow them, but there doesn't seem to be much of a use-case,
                                     // and it's easier to give good error messages about duplicate values this way,
                                     // rather than rustc errors on conflicting match branches.
-                                    die!(expr => format!("Only literals are allowed as num_enum alternate values"))
+                                    die!(expr => "Only literals are allowed as num_enum alternate values".to_string())
                                 },
                             }
                         })

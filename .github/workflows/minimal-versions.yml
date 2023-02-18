@@ -1,0 +1,24 @@
+name: minimal-versions-build
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+jobs:
+  minimal-versions-build:
+    name: Minimal versions build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v2
+      - name: Fetch toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+      - name: Test with minimal versions
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -Z minimal-versions --manifest-path=num_enum/Cargo.toml
+          toolchain: nightly

@@ -236,6 +236,64 @@ mod complex {
         let seven: Result<Enum, _> = 7u8.try_into();
         assert_eq!(seven, Ok(Enum::Seven));
     }
+
+    #[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+    #[repr(u8)]
+    enum EnumWithExclusiveRange {
+        Zero = 0,
+        #[num_enum(alternatives = [2..4])]
+        OneOrTwoOrThree,
+    }
+
+    #[test]
+    fn different_values_with_exclusive_range() {
+        let zero: Result<EnumWithExclusiveRange, _> = 0u8.try_into();
+        assert_eq!(zero, Ok(EnumWithExclusiveRange::Zero));
+
+        let one: Result<EnumWithExclusiveRange, _> = 1u8.try_into();
+        assert_eq!(one, Ok(EnumWithExclusiveRange::OneOrTwoOrThree));
+
+        let two: Result<EnumWithExclusiveRange, _> = 2u8.try_into();
+        assert_eq!(two, Ok(EnumWithExclusiveRange::OneOrTwoOrThree));
+
+        let three: Result<EnumWithExclusiveRange, _> = 3u8.try_into();
+        assert_eq!(three, Ok(EnumWithExclusiveRange::OneOrTwoOrThree));
+
+        let four: Result<EnumWithExclusiveRange, _> = 4u8.try_into();
+        assert_eq!(
+            four.unwrap_err().to_string(),
+            "No discriminant in enum `EnumWithExclusiveRange` matches the value `4`",
+        );
+    }
+
+    #[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+    #[repr(u8)]
+    enum EnumWithInclusiveRange {
+        Zero = 0,
+        #[num_enum(alternatives = [2..=3])]
+        OneOrTwoOrThree,
+    }
+
+    #[test]
+    fn different_values_with_inclusive_range() {
+        let zero: Result<EnumWithInclusiveRange, _> = 0u8.try_into();
+        assert_eq!(zero, Ok(EnumWithInclusiveRange::Zero));
+
+        let one: Result<EnumWithInclusiveRange, _> = 1u8.try_into();
+        assert_eq!(one, Ok(EnumWithInclusiveRange::OneOrTwoOrThree));
+
+        let two: Result<EnumWithInclusiveRange, _> = 2u8.try_into();
+        assert_eq!(two, Ok(EnumWithInclusiveRange::OneOrTwoOrThree));
+
+        let three: Result<EnumWithInclusiveRange, _> = 3u8.try_into();
+        assert_eq!(three, Ok(EnumWithInclusiveRange::OneOrTwoOrThree));
+
+        let four: Result<EnumWithInclusiveRange, _> = 4u8.try_into();
+        assert_eq!(
+            four.unwrap_err().to_string(),
+            "No discriminant in enum `EnumWithInclusiveRange` matches the value `4`",
+        );
+    }
 }
 
 #[test]

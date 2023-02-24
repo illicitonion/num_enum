@@ -94,6 +94,34 @@ fn main() {
 }
 ```
 
+Range expressions are also supported for alternatives, but this requires enabling the `complex-expressions` feature:
+
+```rust
+use num_enum::TryFromPrimitive;
+use std::convert::TryFrom;
+
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
+enum Number {
+    Zero = 0,
+    #[num_enum(alternatives = [2..16])]
+    Some = 1,
+    #[num_enum(alternatives = [17, 18..=255])]
+    Many = 16,
+}
+
+fn main() {
+    let zero = Number::try_from(0u8);
+    assert_eq!(zero, Ok(Number::Zero));
+
+    let some = Number::try_from(15u8);
+    assert_eq!(some, Ok(Number::Some));
+
+    let many = Number::try_from(255u8);
+    assert_eq!(many, Ok(Number::Many));
+}
+```
+
 Default variant
 ---------------
 
@@ -130,8 +158,13 @@ fn main() {
 Safely turning a primitive into an exhaustive enum with from_primitive
 -------------------------------------------------------------
 
-If your enum has all possible primitive values covered by the use of a variant marked `#[num_enum(default)]`,
-you can derive `FromPrimitive` for it (which auto-implement stdlib's `From`):
+If your enum has all possible primitive values covered, you can derive `FromPrimitive` for it (which auto-implement stdlib's `From`):
+
+You can cover all possible values by:
+* Having variants for every possible value
+* Having a variant marked `#[num_enum(default)]`
+* Having a variant marked `#[num_enum(catch_all)]`
+* Having `#[num_enum(alternatives = [...])`s covering values not covered by a variant.
 
 ```rust
 use num_enum::FromPrimitive;
@@ -155,6 +188,39 @@ fn main() {
     );
 }
 ```
+
+Catch-all variant
+-----------------
+
+Sometimes it is desirable to have an `Other` variant which holds the otherwise un-matched value as a field.
+
+The `#[num_enum(catch_all)]` attribute allows you to mark at most one variant for this purpose. The variant it's applied to must be a tuple variant with exactly one field matching the `repr` type.
+
+```rust
+use num_enum::FromPrimitive;
+use std::convert::TryFrom;
+
+#[derive(Debug, Eq, PartialEq, FromPrimitive)]
+#[repr(u8)]
+enum Number {
+    Zero = 0,
+    #[num_enum(catch_all)]
+    NonZero(u8),
+}
+
+fn main() {
+    let zero = Number::from(0u8);
+    assert_eq!(zero, Number::Zero);
+
+    let one = Number::from(1u8);
+    assert_eq!(one, Number::NonZero(1_u8));
+
+    let two = Number::from(2u8);
+    assert_eq!(two, Number::NonZero(2_u8));
+}
+```
+
+As this is naturally exhaustive, this is only supported for `FromPrimitive`, not also `TryFromPrimitive`.
 
 Unsafely turning a primitive into an enum with from_unchecked
 -------------------------------------------------------------

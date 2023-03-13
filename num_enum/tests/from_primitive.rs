@@ -1,6 +1,4 @@
-use ::std::convert::TryFrom;
-
-use ::num_enum::{FromPrimitive, TryFromPrimitive};
+use ::num_enum::FromPrimitive;
 
 // Guard against https://github.com/illicitonion/num_enum/issues/27
 mod alloc {}
@@ -89,11 +87,11 @@ fn from_primitive_number() {
     let from = Enum::from(0_u8);
     assert_eq!(from, Enum::Whatever);
 
-    let try_from_primitive = Enum::try_from_primitive(0_u8);
-    assert_eq!(try_from_primitive, Ok(Enum::Whatever));
+    let from_primitive = Enum::from_primitive(1_u8);
+    assert_eq!(from_primitive, Enum::Whatever);
 
-    let try_from = Enum::try_from(0_u8);
-    assert_eq!(try_from, Ok(Enum::Whatever));
+    let from = Enum::from(1_u8);
+    assert_eq!(from, Enum::Whatever);
 }
 
 #[test]

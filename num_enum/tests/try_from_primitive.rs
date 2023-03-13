@@ -440,7 +440,10 @@ fn default_value() {
     assert_eq!(two, Ok(Enum::Other));
 
     let max_value: Result<Enum, _> = u8::max_value().try_into();
-    assert_eq!(max_value, Ok(Enum::Other));
+    assert_eq!(
+        max_value.unwrap_err().to_string(),
+        "No discriminant in enum `Enum` matches the value `255`"
+    );
 }
 
 #[test]
@@ -472,7 +475,10 @@ fn alternative_values_and_default_value() {
     assert_eq!(four, Ok(Enum::Four));
 
     let five: Result<Enum, _> = 5u8.try_into();
-    assert_eq!(five, Ok(Enum::Zero));
+    assert_eq!(
+        five.unwrap_err().to_string(),
+        "No discriminant in enum `Enum` matches the value `5`"
+    );
 }
 
 #[test]

@@ -785,24 +785,8 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
             }
         }
 
-        // The Rust stdlib will implement `#name: From<#repr>` for us for free!
-
-        impl ::#krate::TryFromPrimitive for #name {
-            type Primitive = #repr;
-
-            const NAME: &'static str = stringify!(#name);
-
-            #[inline]
-            fn try_from_primitive (
-                number: Self::Primitive,
-            ) -> ::core::result::Result<
-                Self,
-                ::#krate::TryFromPrimitiveError<Self>,
-            >
-            {
-                Ok(::#krate::FromPrimitive::from_primitive(number))
-            }
-        }
+        #[doc(hidden)]
+        impl ::#krate::CannotDeriveBothFromPrimitiveAndTryFromPrimitive for #name {}
     })
 }
 
@@ -846,23 +830,6 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
 
     debug_assert_eq!(variant_idents.len(), variant_expressions.len());
 
-    let default_arm = match enum_info.default() {
-        Some(ident) => {
-            quote! {
-                _ => ::core::result::Result::Ok(
-                    #name::#ident
-                )
-            }
-        }
-        None => {
-            quote! {
-                _ => ::core::result::Result::Err(
-                    ::#krate::TryFromPrimitiveError { number }
-                )
-            }
-        }
-    };
-
     TokenStream::from(quote! {
         impl ::#krate::TryFromPrimitive for #name {
             type Primitive = #repr;
@@ -890,7 +857,9 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
                         => ::core::result::Result::Ok(Self::#variant_idents),
                     )*
                     #[allow(unreachable_patterns)]
-                    #default_arm,
+                    _ => ::core::result::Result::Err(
+                        ::#krate::TryFromPrimitiveError { number }
+                    ),
                 }
             }
         }
@@ -906,6 +875,9 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
                 ::#krate::TryFromPrimitive::try_from_primitive(number)
             }
         }
+
+        #[doc(hidden)]
+        impl ::#krate::CannotDeriveBothFromPrimitiveAndTryFromPrimitive for #name {}
     })
 }
 

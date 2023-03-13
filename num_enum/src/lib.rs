@@ -65,3 +65,13 @@ impl<Enum: TryFromPrimitive> fmt::Display for TryFromPrimitiveError<Enum> {
 
 #[cfg(feature = "std")]
 impl<Enum: TryFromPrimitive> ::std::error::Error for TryFromPrimitiveError<Enum> {}
+
+// This trait exists to try to give a more clear error message when someone attempts to derive both FromPrimitive and TryFromPrimitive.
+// This isn't allowed because both end up creating a `TryFrom<primitive>` implementation.
+// TryFromPrimitive explicitly implements TryFrom<primitive> with Error=TryFromPrimitiveError, which conflicts with:
+// FromPrimitive explicitly implements From<primitive> which has a blanket implementation of TryFrom<primitive> with Error=Infallible.
+//
+// This is a private implementation detail of the num_enum crate which should not be depended on externally.
+// It is subject to change in any release regardless of semver.
+#[doc(hidden)]
+pub trait CannotDeriveBothFromPrimitiveAndTryFromPrimitive {}

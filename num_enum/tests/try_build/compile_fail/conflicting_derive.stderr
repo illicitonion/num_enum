@@ -1,4 +1,4 @@
-error[E0119]: conflicting implementations of trait `TryFromPrimitive` for type `Numbers`
+error[E0119]: conflicting implementations of trait `CannotDeriveBothFromPrimitiveAndTryFromPrimitive` for type `Numbers`
  --> tests/try_build/compile_fail/conflicting_derive.rs:1:35
   |
 1 | #[derive(num_enum::FromPrimitive, num_enum::TryFromPrimitive)]

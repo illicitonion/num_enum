@@ -127,15 +127,15 @@ Default variant
 
 Sometimes it is desirable to have an `Other` variant in an enum that acts as a kind of a wildcard matching all the value not yet covered by other variants.
 
-The `#[num_enum(default)]` attribute allows you to mark variant as the default.
+The `#[num_enum(default)]` attribute (or the stdlib `#[default]` attribute) allows you to mark variant as the default.
 
 (The behavior of `IntoPrimitive` is unaffected by this attribute, it will always return the canonical value.)
 
 ```rust
-use num_enum::TryFromPrimitive;
+use num_enum::FromPrimitive;
 use std::convert::TryFrom;
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, FromPrimitive)]
 #[repr(u8)]
 enum Number {
     Zero = 0,
@@ -144,16 +144,18 @@ enum Number {
 }
 
 fn main() {
-    let zero = Number::try_from(0u8);
-    assert_eq!(zero, Ok(Number::Zero));
+    let zero = Number::from(0u8);
+    assert_eq!(zero, Number::Zero);
 
-    let one = Number::try_from(1u8);
-    assert_eq!(one, Ok(Number::NonZero));
+    let one = Number::from(1u8);
+    assert_eq!(one, Number::NonZero);
 
-    let two = Number::try_from(2u8);
-    assert_eq!(two, Ok(Number::NonZero));
+    let two = Number::from(2u8);
+    assert_eq!(two, Number::NonZero);
 }
 ```
+
+Only `FromPrimitive` pays attention to `default` attributes, `TryFromPrimitive` ignores them.
 
 Safely turning a primitive into an exhaustive enum with from_primitive
 -------------------------------------------------------------

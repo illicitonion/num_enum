@@ -27,6 +27,17 @@ pub trait TryFromPrimitive: Sized {
     fn try_from_primitive(number: Self::Primitive) -> Result<Self, TryFromPrimitiveError<Self>>;
 }
 
+pub trait UnsafeFromPrimitive: Sized {
+    type Primitive: Copy + Eq;
+
+    /// Transmutes into an enum from its primitive.
+    ///
+    /// # Safety
+    ///
+    /// - `number` must represent a valid discriminant of `Self`.
+    unsafe fn from_unchecked(number: Self::Primitive) -> Self;
+}
+
 pub struct TryFromPrimitiveError<Enum: TryFromPrimitive> {
     pub number: Enum::Primitive,
 }

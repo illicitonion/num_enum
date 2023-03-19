@@ -867,11 +867,11 @@ fn get_crate_name() -> String {
     String::from("num_enum")
 }
 
-/// Generates a `unsafe fn from_unchecked (number: Primitive) -> Self`
+/// Generates a `unsafe fn unchecked_transmute_from(number: Primitive) -> Self`
 /// associated function.
 ///
-/// Allows unsafely turning a primitive into an enum with from_unchecked.
-/// -------------------------------------------------------------
+/// Allows unsafely turning a primitive into an enum with unchecked_transmute_from
+/// ------------------------------------------------------------------------------
 ///
 /// If you're really certain a conversion will succeed, and want to avoid a small amount of overhead, you can use unsafe
 /// code to do this conversion. Unless you have data showing that the match statement generated in the `try_from` above is a
@@ -894,16 +894,16 @@ fn get_crate_name() -> String {
 /// fn main() {
 ///     assert_eq!(
 ///         Number::Zero,
-///         unsafe { Number::from_unchecked(0_u8) },
+///         unsafe { Number::unchecked_transmute_from(0_u8) },
 ///     );
 ///     assert_eq!(
 ///         Number::One,
-///         unsafe { Number::from_unchecked(1_u8) },
+///         unsafe { Number::unchecked_transmute_from(1_u8) },
 ///     );
 /// }
 ///
 /// unsafe fn undefined_behavior() {
-///     let _ = Number::from_unchecked(2); // 2 is not a valid discriminant!
+///     let _ = Number::unchecked_transmute_from(2); // 2 is not a valid discriminant!
 /// }
 /// ```
 #[proc_macro_derive(UnsafeFromPrimitive, attributes(num_enum))]
@@ -919,7 +919,7 @@ pub fn derive_unsafe_from_primitive(stream: TokenStream) -> TokenStream {
         impl ::#krate::UnsafeFromPrimitive for #name {
             type Primitive = #repr;
 
-            unsafe fn from_unchecked(number: Self::Primitive) -> Self {
+            unsafe fn unchecked_transmute_from(number: Self::Primitive) -> Self {
                 ::core::mem::transmute(number)
             }
         }

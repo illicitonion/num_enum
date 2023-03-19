@@ -16,8 +16,8 @@ fn has_unsafe_from_primitive_number() {
     }
 
     unsafe {
-        assert_eq!(Enum::from_unchecked(0_u8), Enum::Zero);
-        assert_eq!(Enum::from_unchecked(1_u8), Enum::One);
+        assert_eq!(Enum::unchecked_transmute_from(0_u8), Enum::Zero);
+        assert_eq!(Enum::unchecked_transmute_from(1_u8), Enum::One);
     }
 }
 
@@ -35,11 +35,19 @@ fn has_unsafe_from_primitive_number_with_alternatives_and_default_which_are_igno
     }
 
     unsafe {
+        assert_eq!(Enum::unchecked_transmute_from(0_u8), Enum::Zero);
+        assert_eq!(Enum::unchecked_transmute_from(1_u8), Enum::One);
+        assert_eq!(Enum::unchecked_transmute_from(2_u8), Enum::Some);
+        assert_eq!(Enum::unchecked_transmute_from(5_u8), Enum::Many);
+        // Any other conversions would be undefined behavior.
+    }
+
+    #[allow(deprecated)]
+    unsafe {
         assert_eq!(Enum::from_unchecked(0_u8), Enum::Zero);
         assert_eq!(Enum::from_unchecked(1_u8), Enum::One);
         assert_eq!(Enum::from_unchecked(2_u8), Enum::Some);
         assert_eq!(Enum::from_unchecked(5_u8), Enum::Many);
-        // Any other conversions would be undefined behavior.
     }
 }
 
@@ -57,10 +65,18 @@ fn has_unsafe_from_primitive_number_with_alternatives_and_std_default_which_are_
     }
 
     unsafe {
+        assert_eq!(Enum::unchecked_transmute_from(0_u8), Enum::Zero);
+        assert_eq!(Enum::unchecked_transmute_from(1_u8), Enum::One);
+        assert_eq!(Enum::unchecked_transmute_from(2_u8), Enum::Some);
+        assert_eq!(Enum::unchecked_transmute_from(5_u8), Enum::Many);
+        // Any other conversions would be undefined behavior.
+    }
+
+    #[allow(deprecated)]
+    unsafe {
         assert_eq!(Enum::from_unchecked(0_u8), Enum::Zero);
         assert_eq!(Enum::from_unchecked(1_u8), Enum::One);
         assert_eq!(Enum::from_unchecked(2_u8), Enum::Some);
         assert_eq!(Enum::from_unchecked(5_u8), Enum::Many);
-        // Any other conversions would be undefined behavior.
     }
 }

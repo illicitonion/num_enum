@@ -48,8 +48,8 @@ mod submodule {
             "No discriminant in enum `Number` matches the value `2`",
         );
 
-        assert_eq!(unsafe { Number::from_unchecked(0) }, Number::Zero);
+        assert_eq!(unsafe { Number::unchecked_transmute_from(0) }, Number::Zero);
 
-        assert_eq!(unsafe { Number::from_unchecked(1) }, Number::One);
+        assert_eq!(unsafe { Number::unchecked_transmute_from(1) }, Number::One);
     }
 }

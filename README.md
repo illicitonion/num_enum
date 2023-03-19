@@ -224,8 +224,8 @@ fn main() {
 
 As this is naturally exhaustive, this is only supported for `FromPrimitive`, not also `TryFromPrimitive`.
 
-Unsafely turning a primitive into an enum with from_unchecked
--------------------------------------------------------------
+Unsafely turning a primitive into an enum with unchecked_transmute_from
+-----------------------------------------------------------------------
 
 If you're really certain a conversion will succeed (and have not made use of `#[num_enum(default)]` or `#[num_enum(alternatives = [..])]`
 for any of its variants), and want to avoid a small amount of overhead, you can use unsafe code to do this conversion.
@@ -249,7 +249,7 @@ If you need support for conversions from these values, you should use `TryFromPr
         #[num_enum(default)]
         One = 1,
     }
-    let _undefined_behavior = unsafe { Number::from_unchecked(2) };
+    let _undefined_behavior = unsafe { Number::unchecked_transmute_from(2) };
     ```
 
 ```rust
@@ -264,17 +264,17 @@ enum Number {
 
 fn main() {
     assert_eq!(
-        unsafe { Number::from_unchecked(0_u8) },
+        unsafe { Number::unchecked_transmute_from(0_u8) },
         Number::Zero,
     );
     assert_eq!(
-        unsafe { Number::from_unchecked(1_u8) },
+        unsafe { Number::unchecked_transmute_from(1_u8) },
         Number::One,
     );
 }
 
 unsafe fn undefined_behavior() {
-    let _ = Number::from_unchecked(2); // 2 is not a valid discriminant!
+    let _ = Number::unchecked_transmute_from(2); // 2 is not a valid discriminant!
 }
 ```
 

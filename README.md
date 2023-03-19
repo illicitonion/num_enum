@@ -235,6 +235,23 @@ you should avoid doing this, as the unsafe code has potential to cause serious m
 Note that this derive ignores any `default`, `catch_all`, and `alternatives` attributes on the enum.
 If you need support for conversions from these values, you should use `TryFromPrimitive` or `FromPrimitive`.
 
+  - This means, for instance, that the following is UB:
+
+    ```rust,no_run
+    use num_enum::UnsafeFromPrimitive;
+
+    #[derive(UnsafeFromPrimitive)]
+    #[repr(u8)]
+    enum Number {
+        Zero = 0,
+
+        // Same for `#[num_enum(catch_all)]`, and `#[num_enum(alternatives = [2, ...])]`
+        #[num_enum(default)]
+        One = 1,
+    }
+    let _undefined_behavior = unsafe { Number::from_unchecked(2) };
+    ```
+
 ```rust
 use num_enum::UnsafeFromPrimitive;
 

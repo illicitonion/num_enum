@@ -232,6 +232,9 @@ for any of its variants), and want to avoid a small amount of overhead, you can 
 Unless you have data showing that the match statement generated in the `try_from` above is a bottleneck for you,
 you should avoid doing this, as the unsafe code has potential to cause serious memory issues in your program.
 
+Note that this derive ignores any `default`, `catch_all`, and `alternatives` attributes on the enum.
+If you need support for conversions from these values, you should use `TryFromPrimitive` or `FromPrimitive`.
+
 ```rust
 use num_enum::UnsafeFromPrimitive;
 

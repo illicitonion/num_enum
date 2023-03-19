@@ -20,3 +20,47 @@ fn has_unsafe_from_primitive_number() {
         assert_eq!(Enum::from_unchecked(1_u8), Enum::One);
     }
 }
+
+#[test]
+fn has_unsafe_from_primitive_number_with_alternatives_and_default_which_are_ignored() {
+    #[derive(Debug, Eq, PartialEq, UnsafeFromPrimitive)]
+    #[repr(u8)]
+    enum Enum {
+        Zero,
+        One,
+        #[num_enum(alternatives = [3, 4])]
+        Some,
+        #[num_enum(default)]
+        Many = 5,
+    }
+
+    unsafe {
+        assert_eq!(Enum::from_unchecked(0_u8), Enum::Zero);
+        assert_eq!(Enum::from_unchecked(1_u8), Enum::One);
+        assert_eq!(Enum::from_unchecked(2_u8), Enum::Some);
+        assert_eq!(Enum::from_unchecked(5_u8), Enum::Many);
+        // Any other conversions would be undefined behavior.
+    }
+}
+
+#[test]
+fn has_unsafe_from_primitive_number_with_alternatives_and_std_default_which_are_ignored() {
+    #[derive(Debug, Default, Eq, PartialEq, UnsafeFromPrimitive)]
+    #[repr(u8)]
+    enum Enum {
+        Zero,
+        One,
+        #[num_enum(alternatives = [3, 4])]
+        Some,
+        #[default]
+        Many = 5,
+    }
+
+    unsafe {
+        assert_eq!(Enum::from_unchecked(0_u8), Enum::Zero);
+        assert_eq!(Enum::from_unchecked(1_u8), Enum::One);
+        assert_eq!(Enum::from_unchecked(2_u8), Enum::Some);
+        assert_eq!(Enum::from_unchecked(5_u8), Enum::Many);
+        // Any other conversions would be undefined behavior.
+    }
+}

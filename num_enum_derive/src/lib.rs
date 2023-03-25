@@ -227,16 +227,8 @@ impl Spanned for VariantAlternativesAttribute {
     }
 }
 
-#[derive(::core::default::Default)]
-struct AttributeSpans {
-    default: Vec<Span>,
-    catch_all: Vec<Span>,
-    alternatives: Vec<Span>,
-}
-
 struct VariantInfo {
     ident: Ident,
-    attr_spans: AttributeSpans,
     is_default: bool,
     is_catch_all: bool,
     canonical_value: Expr,
@@ -246,10 +238,6 @@ struct VariantInfo {
 impl VariantInfo {
     fn all_values(&self) -> impl Iterator<Item = &Expr> {
         ::core::iter::once(&self.canonical_value).chain(self.alternative_values.iter())
-    }
-
-    fn is_complex(&self) -> bool {
-        !self.alternative_values.is_empty()
     }
 }
 
@@ -284,14 +272,6 @@ impl EnumInfo {
         die!(self.repr.clone() => "Failed to parse repr into bit size");
     }
 
-    fn has_default_variant(&self) -> bool {
-        self.default().is_some()
-    }
-
-    fn has_complex_variant(&self) -> bool {
-        self.variants.iter().any(|info| info.is_complex())
-    }
-
     fn default(&self) -> Option<&Ident> {
         self.variants
             .iter()
@@ -304,18 +284,6 @@ impl EnumInfo {
             .iter()
             .find(|info| info.is_catch_all)
             .map(|info| &info.ident)
-    }
-
-    fn first_default_attr_span(&self) -> Option<&Span> {
-        self.variants
-            .iter()
-            .find_map(|info| info.attr_spans.default.first())
-    }
-
-    fn first_alternatives_attr_span(&self) -> Option<&Span> {
-        self.variants
-            .iter()
-            .find_map(|info| info.attr_spans.alternatives.first())
     }
 
     fn variant_idents(&self) -> Vec<Ident> {
@@ -406,7 +374,6 @@ impl Parse for EnumInfo {
                     None => next_discriminant.clone(),
                 };
 
-                let mut attr_spans: AttributeSpans = Default::default();
                 let mut raw_alternative_values: Vec<Expr> = vec![];
                 // Keep the attribute around for better error reporting.
                 let mut alt_attr_ref: Vec<&Attribute> = vec![];
@@ -428,7 +395,6 @@ impl Parse for EnumInfo {
                                 "Attribute `default` is mutually exclusive with `catch_all`"
                             );
                         }
-                        attr_spans.default.push(attribute.span());
                         is_default = true;
                         has_default_variant = true;
                     }
@@ -448,7 +414,6 @@ impl Parse for EnumInfo {
                                                     "Attribute `default` is mutually exclusive with `catch_all`"
                                                 );
                                             }
-                                            attr_spans.default.push(default.span());
                                             is_default = true;
                                             has_default_variant = true;
                                         }
@@ -473,7 +438,6 @@ impl Parse for EnumInfo {
                                                     ty: syn::Type::Path(syn::TypePath { path, .. }),
                                                     ..
                                                 }] if path.is_ident(&repr) => {
-                                                    attr_spans.catch_all.push(catch_all.span());
                                                     is_catch_all = true;
                                                     has_catch_all_variant = true;
                                                 }
@@ -485,7 +449,6 @@ impl Parse for EnumInfo {
                                             }
                                         }
                                         NumEnumVariantAttributeItem::Alternatives(alternatives) => {
-                                            attr_spans.alternatives.push(alternatives.span());
                                             raw_alternative_values.extend(alternatives.expressions);
                                             alt_attr_ref.push(attribute);
                                         }
@@ -615,7 +578,6 @@ impl Parse for EnumInfo {
 
                 variants.push(VariantInfo {
                     ident,
-                    attr_spans,
                     is_default,
                     is_catch_all,
                     canonical_value: discriminant,
@@ -905,16 +867,19 @@ fn get_crate_name() -> String {
     String::from("num_enum")
 }
 
-/// Generates a `unsafe fn from_unchecked (number: Primitive) -> Self`
+/// Generates a `unsafe fn unchecked_transmute_from(number: Primitive) -> Self`
 /// associated function.
 ///
-/// Allows unsafely turning a primitive into an enum with from_unchecked.
-/// -------------------------------------------------------------
+/// Allows unsafely turning a primitive into an enum with unchecked_transmute_from
+/// ------------------------------------------------------------------------------
 ///
 /// If you're really certain a conversion will succeed, and want to avoid a small amount of overhead, you can use unsafe
 /// code to do this conversion. Unless you have data showing that the match statement generated in the `try_from` above is a
 /// bottleneck for you, you should avoid doing this, as the unsafe code has potential to cause serious memory issues in
 /// your program.
+///
+/// Note that this derive ignores any `default`, `catch_all`, and `alternatives` attributes on the enum.
+/// If you need support for conversions from these values, you should use `TryFromPrimitive` or `FromPrimitive`.
 ///
 /// ```rust
 /// use num_enum::UnsafeFromPrimitive;
@@ -929,41 +894,22 @@ fn get_crate_name() -> String {
 /// fn main() {
 ///     assert_eq!(
 ///         Number::Zero,
-///         unsafe { Number::from_unchecked(0_u8) },
+///         unsafe { Number::unchecked_transmute_from(0_u8) },
 ///     );
 ///     assert_eq!(
 ///         Number::One,
-///         unsafe { Number::from_unchecked(1_u8) },
+///         unsafe { Number::unchecked_transmute_from(1_u8) },
 ///     );
 /// }
 ///
 /// unsafe fn undefined_behavior() {
-///     let _ = Number::from_unchecked(2); // 2 is not a valid discriminant!
+///     let _ = Number::unchecked_transmute_from(2); // 2 is not a valid discriminant!
 /// }
 /// ```
 #[proc_macro_derive(UnsafeFromPrimitive, attributes(num_enum))]
 pub fn derive_unsafe_from_primitive(stream: TokenStream) -> TokenStream {
     let enum_info = parse_macro_input!(stream as EnumInfo);
     let krate = Ident::new(&get_crate_name(), Span::call_site());
-
-    if enum_info.has_default_variant() {
-        let span = enum_info
-            .first_default_attr_span()
-            .cloned()
-            .expect("Expected span");
-        let message = "#[derive(UnsafeFromPrimitive)] does not support `#[num_enum(default)]`";
-        return syn::Error::new(span, message).to_compile_error().into();
-    }
-
-    if enum_info.has_complex_variant() {
-        let span = enum_info
-            .first_alternatives_attr_span()
-            .cloned()
-            .expect("Expected span");
-        let message =
-            "#[derive(UnsafeFromPrimitive)] does not support `#[num_enum(alternatives = [..])]`";
-        return syn::Error::new(span, message).to_compile_error().into();
-    }
 
     let EnumInfo {
         ref name, ref repr, ..
@@ -973,7 +919,7 @@ pub fn derive_unsafe_from_primitive(stream: TokenStream) -> TokenStream {
         impl ::#krate::UnsafeFromPrimitive for #name {
             type Primitive = #repr;
 
-            unsafe fn from_unchecked(number: Self::Primitive) -> Self {
+            unsafe fn unchecked_transmute_from(number: Self::Primitive) -> Self {
                 ::core::mem::transmute(number)
             }
         }

@@ -35,7 +35,20 @@ pub trait UnsafeFromPrimitive: Sized {
     /// # Safety
     ///
     /// - `number` must represent a valid discriminant of `Self`.
-    unsafe fn from_unchecked(number: Self::Primitive) -> Self;
+    #[deprecated(
+        since = "0.6.0",
+        note = "Prefer to use `unchecked_transmute_from`, `from_unchecked` will be removed in a future release."
+    )]
+    unsafe fn from_unchecked(number: Self::Primitive) -> Self {
+        Self::unchecked_transmute_from(number)
+    }
+
+    /// Transmutes into an enum from its primitive.
+    ///
+    /// # Safety
+    ///
+    /// - `number` must represent a valid discriminant of `Self`.
+    unsafe fn unchecked_transmute_from(number: Self::Primitive) -> Self;
 }
 
 pub struct TryFromPrimitiveError<Enum: TryFromPrimitive> {

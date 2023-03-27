@@ -5,14 +5,12 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 use std::collections::BTreeSet;
 use syn::{
     parse::{Parse, ParseStream},
-    parse_macro_input, parse_quote,
-    spanned::Spanned,
-    Attribute, Data, DeriveInput, Error, Expr, ExprLit, ExprUnary, Fields, Ident, Lit, LitInt,
-    Meta, Result, UnOp,
+    parse_macro_input, parse_quote, Attribute, Data, DeriveInput, Error, Expr, ExprLit, ExprUnary,
+    Fields, Ident, Lit, LitInt, Meta, Result, UnOp,
 };
 
 macro_rules! die {
@@ -86,11 +84,11 @@ fn parse_alternative_values(val_expr: &Expr) -> Result<Vec<DiscriminantValue>> {
     }
 
     if let Expr::Range(syn::ExprRange {
-        from, to, limits, ..
+        start, end, limits, ..
     }) = val_expr
     {
-        let lower = range_expr_value_to_number(val_expr, from)?;
-        let upper = range_expr_value_to_number(val_expr, to)?;
+        let lower = range_expr_value_to_number(val_expr, start)?;
+        let upper = range_expr_value_to_number(val_expr, end)?;
         // While this is technically allowed in Rust, and results in an empty range, it's almost certainly a mistake in this context.
         if lower > upper {
             die!(val_expr => "When using ranges for alternate values, upper bound must not be less than lower bound");
@@ -136,7 +134,7 @@ struct NumEnumVariantAttributes {
 impl Parse for NumEnumVariantAttributes {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
         Ok(Self {
-            items: input.parse_terminated(NumEnumVariantAttributeItem::parse)?,
+            items: input.parse_terminated(NumEnumVariantAttributeItem::parse, syn::Token![,])?,
         })
     }
 }
@@ -174,12 +172,6 @@ impl Parse for VariantDefaultAttribute {
     }
 }
 
-impl Spanned for VariantDefaultAttribute {
-    fn span(&self) -> Span {
-        self.keyword.span()
-    }
-}
-
 struct VariantCatchAllAttribute {
     keyword: kw::catch_all,
 }
@@ -192,14 +184,8 @@ impl Parse for VariantCatchAllAttribute {
     }
 }
 
-impl Spanned for VariantCatchAllAttribute {
-    fn span(&self) -> Span {
-        self.keyword.span()
-    }
-}
-
 struct VariantAlternativesAttribute {
-    keyword: kw::alternatives,
+    _keyword: kw::alternatives,
     _eq_token: syn::Token![=],
     _bracket_token: syn::token::Bracket,
     expressions: syn::punctuated::Punctuated<Expr, syn::Token![,]>,
@@ -211,19 +197,13 @@ impl Parse for VariantAlternativesAttribute {
         let keyword = input.parse()?;
         let _eq_token = input.parse()?;
         let _bracket_token = syn::bracketed!(content in input);
-        let expressions = content.parse_terminated(Expr::parse)?;
+        let expressions = content.parse_terminated(Expr::parse, syn::Token![,])?;
         Ok(Self {
-            keyword,
+            _keyword: keyword,
             _eq_token,
             _bracket_token,
             expressions,
         })
-    }
-}
-
-impl Spanned for VariantAlternativesAttribute {
-    fn span(&self) -> Span {
-        self.keyword.span()
     }
 }
 
@@ -329,16 +309,16 @@ impl Parse for EnumInfo {
                 let mut attrs = input.attrs.into_iter();
                 loop {
                     if let Some(attr) = attrs.next() {
-                        if let Ok(Meta::List(meta_list)) = attr.parse_meta() {
+                        if let Meta::List(meta_list) = &attr.meta {
                             if let Some(ident) = meta_list.path.get_ident() {
                                 if ident == "repr" {
-                                    let mut nested = meta_list.nested.iter();
-                                    if nested.len() != 1 {
-                                        die!(attr =>
+                                    let mut nested = meta_list.tokens.clone().into_iter();
+                                    let repr = match (nested.next(), nested.next()) {
+                                        (Some(repr), None) => repr,
+                                        _ => die!(attr =>
                                             "Expected exactly one `repr` argument"
-                                        );
-                                    }
-                                    let repr = nested.next().unwrap();
+                                        ),
+                                    };
                                     let repr: Ident = parse_quote! {
                                         #repr
                                     };
@@ -385,7 +365,7 @@ impl Parse for EnumInfo {
                 let mut is_catch_all: bool = false;
 
                 for attribute in &variant.attrs {
-                    if attribute.path.is_ident("default") {
+                    if attribute.path().is_ident("default") {
                         if has_default_variant {
                             die!(attribute =>
                                 "Multiple variants marked `#[default]` or `#[num_enum(default)]` found"
@@ -399,7 +379,7 @@ impl Parse for EnumInfo {
                         has_default_variant = true;
                     }
 
-                    if attribute.path.is_ident("num_enum") {
+                    if attribute.path().is_ident("num_enum") {
                         match attribute.parse_args_with(NumEnumVariantAttributes::parse) {
                             Ok(variant_attributes) => {
                                 for variant_attribute in variant_attributes.items {
@@ -457,7 +437,9 @@ impl Parse for EnumInfo {
                             }
                             Err(err) => {
                                 if cfg!(not(feature = "complex-expressions")) {
-                                    let attribute_str = format!("{}", attribute.tokens);
+                                    let tokens = attribute.meta.to_token_stream();
+
+                                    let attribute_str = format!("{}", tokens);
                                     if attribute_str.contains("alternatives")
                                         && attribute_str.contains("..")
                                     {

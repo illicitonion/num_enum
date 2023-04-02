@@ -7,7 +7,7 @@ authors = [
   "Vincent Esche <regexident@gmail.com>",
 ]
 description = "Example crate using num_enum and serde. Regression test for https://github.com/illicitonion/num_enum/issues/18."
-edition = "2018"
+edition = "2021"
 repository = "https://github.com/illicitonion/num_enum"
 publish = false
 

@@ -1,5 +1,5 @@
 [workspace]
-members = ["num_enum", "num_enum_derive", "renamed_num_enum", "serde_example", "stress_tests"]
+members = ["metadata_checks", "num_enum", "num_enum_derive", "renamed_num_enum", "serde_example", "stress_tests"]
 # Exclude num_enum_derive because its useful doc comments import num_enum, which the crate doesn't do (because it would
 # cause a circular dependency), so the doc tests don't actually compile.
 default-members  = ["num_enum", "renamed_num_enum", "serde_example", "stress_tests"]

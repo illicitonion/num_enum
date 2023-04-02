@@ -1,0 +1,10 @@
+[package]
+name = "metadata_check"
+version = "0.1.0"
+edition = "2018"
+publish = false
+
+[dev-dependencies]
+cargo_toml = "0.13.3"
+serde = "1"
+serde_yaml = "0.9"

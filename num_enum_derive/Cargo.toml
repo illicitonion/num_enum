@@ -8,7 +8,7 @@ authors = [
   "Vincent Esche <regexident@gmail.com>",
 ]
 description = "Internal implementation details for ::num_enum (Procedural macros to make inter-operation between primitives and enums easier)"
-edition = "2018"
+edition = "2021"
 repository = "https://github.com/illicitonion/num_enum"
 keywords = []
 categories = []

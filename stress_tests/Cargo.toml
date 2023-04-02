@@ -7,7 +7,7 @@ authors = [
   "Vincent Esche <regexident@gmail.com>",
 ]
 description = "Tests using large enums. Regression test for https://github.com/illicitonion/num_enum/issues/83."
-edition = "2018"
+edition = "2021"
 repository = "https://github.com/illicitonion/num_enum"
 publish = false
 

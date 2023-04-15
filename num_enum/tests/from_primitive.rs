@@ -7,26 +7,24 @@ mod num_enum {}
 mod std {}
 
 macro_rules! has_from_primitive_number {
-    ( $type:ty ) => {
-        {
-            #[derive(Debug, Eq, PartialEq, FromPrimitive)]
-            #[repr($type)]
-            enum Enum {
-                Zero = 0,
-                #[num_enum(default)]
-                NonZero = 1,
-            }
-
-            let zero = Enum::from_primitive(0 as $type);
-            assert_eq!(zero, Enum::Zero);
-
-            let one = Enum::from_primitive(1 as $type);
-            assert_eq!(one, Enum::NonZero);
-
-            let two = Enum::from_primitive(2 as $type);
-            assert_eq!(two, Enum::NonZero);
+    ( $type:ty ) => {{
+        #[derive(Debug, Eq, PartialEq, FromPrimitive)]
+        #[repr($type)]
+        enum Enum {
+            Zero = 0,
+            #[num_enum(default)]
+            NonZero = 1,
         }
-    };
+
+        let zero = Enum::from_primitive(0 as $type);
+        assert_eq!(zero, Enum::Zero);
+
+        let one = Enum::from_primitive(1 as $type);
+        assert_eq!(one, Enum::NonZero);
+
+        let two = Enum::from_primitive(2 as $type);
+        assert_eq!(two, Enum::NonZero);
+    }};
 }
 
 #[test]

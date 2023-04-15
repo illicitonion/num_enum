@@ -7,42 +7,44 @@ mod num_enum {}
 mod std {}
 
 macro_rules! has_from_primitive_number {
-    ( $type:ty ) => {{
-        #[derive(Debug, Eq, PartialEq, FromPrimitive)]
-        #[repr($type)]
-        enum Enum {
-            Zero = 0,
-            #[num_enum(default)]
-            NonZero = 1,
+    ( $type:ty ) => {
+        paste::paste! {
+            #[test]
+            fn [<has_from_primitive_number_ $type>]() {
+                #[derive(Debug, Eq, PartialEq, FromPrimitive)]
+                #[repr($type)]
+                enum Enum {
+                    Zero = 0,
+                    #[num_enum(default)]
+                    NonZero = 1,
+                }
+
+                let zero = Enum::from_primitive(0 as $type);
+                assert_eq!(zero, Enum::Zero);
+
+                let one = Enum::from_primitive(1 as $type);
+                assert_eq!(one, Enum::NonZero);
+
+                let two = Enum::from_primitive(2 as $type);
+                assert_eq!(two, Enum::NonZero);
+            }
         }
-
-        let zero = Enum::from_primitive(0 as $type);
-        assert_eq!(zero, Enum::Zero);
-
-        let one = Enum::from_primitive(1 as $type);
-        assert_eq!(one, Enum::NonZero);
-
-        let two = Enum::from_primitive(2 as $type);
-        assert_eq!(two, Enum::NonZero);
-    }};
+    };
 }
 
-#[test]
-fn has_from_primitive_number() {
-    has_from_primitive_number!(u8);
-    has_from_primitive_number!(u16);
-    has_from_primitive_number!(u32);
-    has_from_primitive_number!(u64);
-    has_from_primitive_number!(usize);
-    has_from_primitive_number!(i8);
-    has_from_primitive_number!(i16);
-    has_from_primitive_number!(i32);
-    has_from_primitive_number!(i64);
-    has_from_primitive_number!(isize);
-    // repr with 128-bit type is unstable
-    // has_from_primitive_number!(u128);
-    // has_from_primitive_number!(i128);
-}
+has_from_primitive_number!(u8);
+has_from_primitive_number!(u16);
+has_from_primitive_number!(u32);
+has_from_primitive_number!(u64);
+has_from_primitive_number!(usize);
+has_from_primitive_number!(i8);
+has_from_primitive_number!(i16);
+has_from_primitive_number!(i32);
+has_from_primitive_number!(i64);
+has_from_primitive_number!(isize);
+// repr with 128-bit type is unstable
+// has_from_primitive_number!(u128);
+// has_from_primitive_number!(i128);
 
 #[test]
 fn has_from_primitive_number_standard_default_attribute() {

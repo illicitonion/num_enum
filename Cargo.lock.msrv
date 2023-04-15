@@ -69,7 +69,7 @@ dependencies = [
 
 [[package]]
 name = "num_enum"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "anyhow",
  "num_enum_derive",
@@ -81,7 +81,7 @@ dependencies = [
 
 [[package]]
 name = "num_enum_derive"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",

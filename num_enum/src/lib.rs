@@ -51,24 +51,11 @@ pub trait UnsafeFromPrimitive: Sized {
     unsafe fn unchecked_transmute_from(number: Self::Primitive) -> Self;
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct TryFromPrimitiveError<Enum: TryFromPrimitive> {
     pub number: Enum::Primitive,
 }
 
-impl<Enum: TryFromPrimitive> Copy for TryFromPrimitiveError<Enum> {}
-impl<Enum: TryFromPrimitive> Clone for TryFromPrimitiveError<Enum> {
-    fn clone(&self) -> Self {
-        TryFromPrimitiveError {
-            number: self.number,
-        }
-    }
-}
-impl<Enum: TryFromPrimitive> Eq for TryFromPrimitiveError<Enum> {}
-impl<Enum: TryFromPrimitive> PartialEq for TryFromPrimitiveError<Enum> {
-    fn eq(&self, other: &Self) -> bool {
-        self.number == other.number
-    }
-}
 impl<Enum: TryFromPrimitive> fmt::Debug for TryFromPrimitiveError<Enum> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("TryFromPrimitiveError")

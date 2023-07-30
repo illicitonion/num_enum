@@ -1,31 +1,20 @@
+use crate::enum_attributes::ErrorTypeAttribute;
+use crate::utils::die;
 use crate::variant_attributes::{NumEnumVariantAttributeItem, NumEnumVariantAttributes};
 use proc_macro2::Span;
 use quote::{format_ident, ToTokens};
 use std::collections::BTreeSet;
 use syn::{
     parse::{Parse, ParseStream},
-    parse_quote, Attribute, Data, DeriveInput, Error, Expr, ExprLit, ExprUnary, Fields, Ident, Lit,
-    LitInt, Meta, Result, UnOp,
+    parse_quote, Attribute, Data, DeriveInput, Expr, ExprLit, ExprUnary, Fields, Ident, Lit,
+    LitInt, Meta, Path, Result, UnOp,
 };
-
-macro_rules! die {
-    ($spanned:expr=>
-        $msg:expr
-    ) => {
-        return Err(Error::new_spanned($spanned, $msg))
-    };
-
-    (
-        $msg:expr
-    ) => {
-        return Err(Error::new(Span::call_site(), $msg))
-    };
-}
 
 pub(crate) struct EnumInfo {
     pub(crate) name: Ident,
     pub(crate) repr: Ident,
     pub(crate) variants: Vec<VariantInfo>,
+    pub(crate) error_type_info: ErrorType,
 }
 
 impl EnumInfo {
@@ -95,6 +84,51 @@ impl EnumInfo {
             .map(|variant| variant.all_values().cloned().collect())
             .collect()
     }
+
+    fn parse_attrs<Attrs: Iterator<Item = Attribute>>(
+        mut attrs: Attrs,
+    ) -> Result<(Ident, Option<ErrorType>)> {
+        let mut maybe_repr = None;
+        let mut maybe_error_type = None;
+        while let Some(attr) = attrs.next() {
+            if let Meta::List(meta_list) = &attr.meta {
+                if let Some(ident) = meta_list.path.get_ident() {
+                    if ident == "repr" {
+                        let mut nested = meta_list.tokens.clone().into_iter();
+                        let repr_tree = match (nested.next(), nested.next()) {
+                            (Some(repr_tree), None) => repr_tree,
+                            _ => die!(attr =>
+                                "Expected exactly one `repr` argument"
+                            ),
+                        };
+                        let repr_ident: Ident = parse_quote! {
+                            #repr_tree
+                        };
+                        if repr_ident == "C" {
+                            die!(repr_ident =>
+                                "repr(C) doesn't have a well defined size"
+                            );
+                        } else {
+                            maybe_repr = Some(repr_ident);
+                        }
+                    } else if ident == "num_enum" {
+                        let attributes =
+                            attr.parse_args_with(crate::enum_attributes::Attributes::parse)?;
+                        if let Some(error_type) = attributes.error_type {
+                            if maybe_error_type.is_some() {
+                                die!(attr => "At most one num_enum error_type attribute may be specified");
+                            }
+                            maybe_error_type = Some(error_type.into());
+                        }
+                    }
+                }
+            }
+        }
+        if maybe_repr.is_none() {
+            die!("Missing `#[repr({Integer})]` attribute");
+        }
+        Ok((maybe_repr.unwrap(), maybe_error_type))
+    }
 }
 
 impl Parse for EnumInfo {
@@ -108,38 +142,7 @@ impl Parse for EnumInfo {
                 Data::Struct(data) => die!(data.struct_token => "Expected enum but found struct"),
             };
 
-            let repr: Ident = {
-                let mut attrs = input.attrs.into_iter();
-                loop {
-                    if let Some(attr) = attrs.next() {
-                        if let Meta::List(meta_list) = &attr.meta {
-                            if let Some(ident) = meta_list.path.get_ident() {
-                                if ident == "repr" {
-                                    let mut nested = meta_list.tokens.clone().into_iter();
-                                    let repr = match (nested.next(), nested.next()) {
-                                        (Some(repr), None) => repr,
-                                        _ => die!(attr =>
-                                            "Expected exactly one `repr` argument"
-                                        ),
-                                    };
-                                    let repr: Ident = parse_quote! {
-                                        #repr
-                                    };
-                                    if repr == "C" {
-                                        die!(repr =>
-                                            "repr(C) doesn't have a well defined size"
-                                        );
-                                    } else {
-                                        break repr;
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        die!("Missing `#[repr({Integer})]` attribute");
-                    }
-                }
-            };
+            let (repr, maybe_error_type) = Self::parse_attrs(input.attrs.into_iter())?;
 
             let mut variants: Vec<VariantInfo> = vec![];
             let mut has_default_variant: bool = false;
@@ -380,10 +383,23 @@ impl Parse for EnumInfo {
                 }
             }
 
+            let error_type_info = maybe_error_type.unwrap_or_else(|| {
+                let crate_name = Ident::new(&get_crate_name(), Span::call_site());
+                ErrorType {
+                    name: parse_quote! {
+                        ::#crate_name::TryFromPrimitiveError<Self>
+                    },
+                    constructor: parse_quote! {
+                        ::#crate_name::TryFromPrimitiveError::<Self>::new
+                    },
+                }
+            });
+
             EnumInfo {
                 name,
                 repr,
                 variants,
+                error_type_info,
             }
         })
     }
@@ -494,6 +510,20 @@ pub(crate) struct VariantInfo {
 impl VariantInfo {
     fn all_values(&self) -> impl Iterator<Item = &Expr> {
         ::core::iter::once(&self.canonical_value).chain(self.alternative_values.iter())
+    }
+}
+
+pub(crate) struct ErrorType {
+    pub(crate) name: Path,
+    pub(crate) constructor: Path,
+}
+
+impl From<ErrorTypeAttribute> for ErrorType {
+    fn from(attribute: ErrorTypeAttribute) -> Self {
+        Self {
+            name: attribute.name.path,
+            constructor: attribute.constructor.path,
+        }
     }
 }
 

@@ -1,3 +1,5 @@
+use std::process::Stdio;
+
 #[test]
 fn no_std() {
     assert!(::std::process::Command::new("cargo")
@@ -9,6 +11,8 @@ fn no_std() {
                 "/../renamed_num_enum/Cargo.toml",
             ),
         ])
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
         .status()
         .unwrap()
         .success())
@@ -27,6 +31,8 @@ fn std() {
             "--features",
             "std",
         ])
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
         .status()
         .unwrap()
         .success())

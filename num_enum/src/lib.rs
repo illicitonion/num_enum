@@ -21,10 +21,11 @@ pub trait FromPrimitive: Sized {
 
 pub trait TryFromPrimitive: Sized {
     type Primitive: Copy + Eq + fmt::Debug;
+    type Error;
 
     const NAME: &'static str;
 
-    fn try_from_primitive(number: Self::Primitive) -> Result<Self, TryFromPrimitiveError<Self>>;
+    fn try_from_primitive(number: Self::Primitive) -> Result<Self, Self::Error>;
 }
 
 pub trait UnsafeFromPrimitive: Sized {
@@ -54,6 +55,12 @@ pub trait UnsafeFromPrimitive: Sized {
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct TryFromPrimitiveError<Enum: TryFromPrimitive> {
     pub number: Enum::Primitive,
+}
+
+impl<Enum: TryFromPrimitive> TryFromPrimitiveError<Enum> {
+    pub fn new(number: Enum::Primitive) -> Self {
+        Self { number }
+    }
 }
 
 impl<Enum: TryFromPrimitive> fmt::Debug for TryFromPrimitiveError<Enum> {

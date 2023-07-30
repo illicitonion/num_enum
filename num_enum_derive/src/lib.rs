@@ -8,8 +8,10 @@ use proc_macro2::Span;
 use quote::quote;
 use syn::{parse_macro_input, Expr, Ident};
 
+mod enum_attributes;
 mod parsing;
 use parsing::{get_crate_name, EnumInfo};
+mod utils;
 mod variant_attributes;
 
 /// Implements `Into<Primitive>` for a `#[repr(Primitive)] enum`.
@@ -191,7 +193,10 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
     let krate = Ident::new(&get_crate_name(), Span::call_site());
 
     let EnumInfo {
-        ref name, ref repr, ..
+        ref name,
+        ref repr,
+        ref error_type_info,
+        ..
     } = enum_info;
 
     let variant_idents: Vec<Ident> = enum_info.variant_idents();
@@ -200,9 +205,13 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
 
     debug_assert_eq!(variant_idents.len(), variant_expressions.len());
 
+    let error_type = &error_type_info.name;
+    let error_constructor = &error_type_info.constructor;
+
     TokenStream::from(quote! {
         impl ::#krate::TryFromPrimitive for #name {
             type Primitive = #repr;
+            type Error = #error_type;
 
             const NAME: &'static str = stringify!(#name);
 
@@ -210,7 +219,7 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
                 number: Self::Primitive,
             ) -> ::core::result::Result<
                 Self,
-                ::#krate::TryFromPrimitiveError<Self>
+                #error_type
             > {
                 // Use intermediate const(s) so that enums defined like
                 // `Two = ONE + 1u8` work properly.
@@ -228,19 +237,19 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
                     )*
                     #[allow(unreachable_patterns)]
                     _ => ::core::result::Result::Err(
-                        ::#krate::TryFromPrimitiveError { number }
+                        #error_constructor ( number )
                     ),
                 }
             }
         }
 
         impl ::core::convert::TryFrom<#repr> for #name {
-            type Error = ::#krate::TryFromPrimitiveError<Self>;
+            type Error = #error_type;
 
             #[inline]
             fn try_from (
                 number: #repr,
-            ) -> ::core::result::Result<Self, ::#krate::TryFromPrimitiveError<Self>>
+            ) -> ::core::result::Result<Self, #error_type>
             {
                 ::#krate::TryFromPrimitive::try_from_primitive(number)
             }

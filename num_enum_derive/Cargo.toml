@@ -1,6 +1,6 @@
 [package]
 name = "num_enum_derive"
-version = "0.6.1"  # Keep in sync with num_enum.
+version = "0.7.0"  # Keep in sync with num_enum.
 rust-version = "1.56.0"
 authors = [
   "Daniel Wagner-Hall <dawagner@gmail.com>",

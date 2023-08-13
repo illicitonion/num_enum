@@ -86,11 +86,11 @@ impl EnumInfo {
     }
 
     fn parse_attrs<Attrs: Iterator<Item = Attribute>>(
-        mut attrs: Attrs,
+        attrs: Attrs,
     ) -> Result<(Ident, Option<ErrorType>)> {
         let mut maybe_repr = None;
         let mut maybe_error_type = None;
-        while let Some(attr) = attrs.next() {
+        for attr in attrs {
             if let Meta::List(meta_list) = &attr.meta {
                 if let Some(ident) = meta_list.path.get_ident() {
                     if ident == "repr" {

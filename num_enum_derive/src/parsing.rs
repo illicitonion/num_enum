@@ -86,7 +86,7 @@ impl EnumInfo {
     }
 
     fn parse_attrs<Attrs: Iterator<Item = Attribute>>(
-        mut attrs: Attrs,
+        attrs: Attrs,
     ) -> Result<(Ident, Option<ErrorType>)> {
         let mut maybe_repr = None;
         let mut maybe_error_type = None;

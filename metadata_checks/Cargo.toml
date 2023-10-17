@@ -5,6 +5,6 @@ edition = "2021"
 publish = false
 
 [dev-dependencies]
-cargo_toml = "0.13.3"
+cargo_toml = "0.16.3"
 serde = "1"
 serde_yaml = "0.9"

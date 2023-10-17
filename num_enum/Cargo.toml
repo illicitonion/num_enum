@@ -1,7 +1,7 @@
 [package]
 name = "num_enum"
 version = "0.7.0"  # Keep in sync with num_enum_derive, the the dependency on it below.
-rust-version = "1.56.0"
+rust-version = "1.66.1"
 authors = [
   "Daniel Wagner-Hall <dawagner@gmail.com>",
   "Daniel Henry-Mantilla <daniel.henry.mantilla@gmail.com>",

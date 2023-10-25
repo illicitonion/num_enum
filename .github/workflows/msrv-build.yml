@@ -15,7 +15,7 @@ jobs:
         uses: dtolnay/rust-toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.66.1
+          toolchain: 1.56.0
           target: thumbv6m-none-eabi
       - name: Use MSRV Cargo.lock
         run: cp Cargo.lock.msrv Cargo.lock
@@ -24,10 +24,10 @@ jobs:
         with:
           command: build
           args: --all --locked
-          toolchain: 1.66.1
+          toolchain: 1.56.0
       - name: Build no-std with MSRV
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --manifest-path=num_enum/Cargo.toml --target thumbv6m-none-eabi --no-default-features --locked
-          toolchain: 1.66.1
+          toolchain: 1.56.0

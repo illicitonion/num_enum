@@ -22,5 +22,5 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: check
-          args: -Z unstable-options -Z check-cfg=features --tests
+          args: -Z unstable-options -Z check-cfg --tests
           toolchain: nightly

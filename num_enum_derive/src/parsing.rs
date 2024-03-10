@@ -270,32 +270,34 @@ impl Parse for EnumInfo {
                     }
                 }
 
-                let discriminant_value = parse_discriminant(&discriminant)?;
-
-                // Check for collision.
-                // We can't do const evaluation, or even compare arbitrary Exprs,
-                // so unfortunately we can't check for duplicates.
-                // That's not the end of the world, just we'll end up with compile errors for
-                // matches with duplicate branches in generated code instead of nice friendly error messages.
-                if let DiscriminantValue::Literal(canonical_value_int) = discriminant_value {
-                    if discriminant_int_val_set.contains(&canonical_value_int) {
-                        die!(ident => format!("The discriminant '{}' collides with a value attributed to a previous variant", canonical_value_int))
-                    }
-                }
-
-                // Deal with the alternative values.
-                let mut flattened_alternative_values = Vec::new();
                 let mut flattened_raw_alternative_values = Vec::new();
-                for raw_alternative_value in raw_alternative_values {
-                    let expanded_values = parse_alternative_values(&raw_alternative_value)?;
-                    for expanded_value in expanded_values {
-                        flattened_alternative_values.push(expanded_value);
-                        flattened_raw_alternative_values.push(raw_alternative_value.clone())
-                    }
-                }
+                let has_discriminant = !is_default && !is_catch_all;
+                if has_discriminant {
+                    let discriminant_value = parse_discriminant(&discriminant)?;
 
-                if !flattened_alternative_values.is_empty() {
-                    let alternate_int_values = flattened_alternative_values
+                    // Check for collision.
+                    // We can't do const evaluation, or even compare arbitrary Exprs,
+                    // so unfortunately we can't check for duplicates.
+                    // That's not the end of the world, just we'll end up with compile errors for
+                    // matches with duplicate branches in generated code instead of nice friendly error messages.
+                    if let DiscriminantValue::Literal(canonical_value_int) = discriminant_value {
+                        if discriminant_int_val_set.contains(&canonical_value_int) {
+                            die!(ident => format!("The discriminant '{}' collides with a value attributed to a previous variant", canonical_value_int))
+                        }
+                    }
+
+                    // Deal with the alternative values.
+                    let mut flattened_alternative_values = Vec::new();
+                    for raw_alternative_value in raw_alternative_values {
+                        let expanded_values = parse_alternative_values(&raw_alternative_value)?;
+                        for expanded_value in expanded_values {
+                            flattened_alternative_values.push(expanded_value);
+                            flattened_raw_alternative_values.push(raw_alternative_value.clone())
+                        }
+                    }
+
+                    if !flattened_alternative_values.is_empty() {
+                        let alternate_int_values = flattened_alternative_values
                         .into_iter()
                         .map(|v| {
                             match v {
@@ -316,54 +318,65 @@ impl Parse for EnumInfo {
                             }
                         })
                         .collect::<Result<Vec<i128>>>()?;
-                    let mut sorted_alternate_int_values = alternate_int_values.clone();
-                    sorted_alternate_int_values.sort_unstable();
-                    let sorted_alternate_int_values = sorted_alternate_int_values;
+                        let mut sorted_alternate_int_values = alternate_int_values.clone();
+                        sorted_alternate_int_values.sort_unstable();
+                        let sorted_alternate_int_values = sorted_alternate_int_values;
 
-                    // Check if the current discriminant is not in the alternative values.
-                    if let DiscriminantValue::Literal(canonical_value_int) = discriminant_value {
-                        if let Some(index) = alternate_int_values
-                            .iter()
-                            .position(|&x| x == canonical_value_int)
+                        // Check if the current discriminant is not in the alternative values.
+                        if let DiscriminantValue::Literal(canonical_value_int) = discriminant_value
                         {
-                            die!(&flattened_raw_alternative_values[index] => format!("'{}' in the alternative values is already attributed as the discriminant of this variant", canonical_value_int));
+                            if let Some(index) = alternate_int_values
+                                .iter()
+                                .position(|&x| x == canonical_value_int)
+                            {
+                                die!(&flattened_raw_alternative_values[index] => format!("'{}' in the alternative values is already attributed as the discriminant of this variant", canonical_value_int));
+                            }
                         }
-                    }
 
-                    // Search for duplicates, the vec is sorted. Warn about them.
-                    if (1..sorted_alternate_int_values.len()).any(|i| {
-                        sorted_alternate_int_values[i] == sorted_alternate_int_values[i - 1]
-                    }) {
-                        let attr = *alt_attr_ref.last().unwrap();
-                        die!(attr => "There is duplication in the alternative values");
-                    }
-                    // Search if those discriminant_int_val_set where already attributed.
-                    // (discriminant_int_val_set is BTreeSet, and iter().next_back() is the is the maximum in the set.)
-                    if let Some(last_upper_val) = discriminant_int_val_set.iter().next_back() {
-                        if sorted_alternate_int_values.first().unwrap() <= last_upper_val {
-                            for (index, val) in alternate_int_values.iter().enumerate() {
-                                if discriminant_int_val_set.contains(val) {
-                                    die!(&flattened_raw_alternative_values[index] => format!("'{}' in the alternative values is already attributed to a previous variant", val));
+                        // Search for duplicates, the vec is sorted. Warn about them.
+                        if (1..sorted_alternate_int_values.len()).any(|i| {
+                            sorted_alternate_int_values[i] == sorted_alternate_int_values[i - 1]
+                        }) {
+                            let attr = *alt_attr_ref.last().unwrap();
+                            die!(attr => "There is duplication in the alternative values");
+                        }
+                        // Search if those discriminant_int_val_set where already attributed.
+                        // (discriminant_int_val_set is BTreeSet, and iter().next_back() is the is the maximum in the set.)
+                        if let Some(last_upper_val) = discriminant_int_val_set.iter().next_back() {
+                            if sorted_alternate_int_values.first().unwrap() <= last_upper_val {
+                                for (index, val) in alternate_int_values.iter().enumerate() {
+                                    if discriminant_int_val_set.contains(val) {
+                                        die!(&flattened_raw_alternative_values[index] => format!("'{}' in the alternative values is already attributed to a previous variant", val));
+                                    }
                                 }
                             }
                         }
+
+                        // Reconstruct the alternative_values vec of Expr but sorted.
+                        flattened_raw_alternative_values = sorted_alternate_int_values
+                            .iter()
+                            .map(|val| literal(val.to_owned()))
+                            .collect();
+
+                        // Add the alternative values to the the set to keep track.
+                        discriminant_int_val_set.extend(sorted_alternate_int_values);
                     }
 
-                    // Reconstruct the alternative_values vec of Expr but sorted.
-                    flattened_raw_alternative_values = sorted_alternate_int_values
-                        .iter()
-                        .map(|val| literal(val.to_owned()))
-                        .collect();
+                    // Add the current discriminant to the the set to keep track.
+                    if let DiscriminantValue::Literal(canonical_value_int) = discriminant_value {
+                        discriminant_int_val_set.insert(canonical_value_int);
+                    }
 
-                    // Add the alternative values to the the set to keep track.
-                    discriminant_int_val_set.extend(sorted_alternate_int_values);
+                    // Get the next value for the discriminant.
+                    next_discriminant = match discriminant_value {
+                        DiscriminantValue::Literal(int_value) => literal(int_value.wrapping_add(1)),
+                        DiscriminantValue::Expr(expr) => {
+                            parse_quote! {
+                                #repr::wrapping_add(#expr, 1)
+                            }
+                        }
+                    };
                 }
-
-                // Add the current discriminant to the the set to keep track.
-                if let DiscriminantValue::Literal(canonical_value_int) = discriminant_value {
-                    discriminant_int_val_set.insert(canonical_value_int);
-                }
-
                 variants.push(VariantInfo {
                     ident,
                     is_default,
@@ -371,16 +384,6 @@ impl Parse for EnumInfo {
                     canonical_value: discriminant,
                     alternative_values: flattened_raw_alternative_values,
                 });
-
-                // Get the next value for the discriminant.
-                next_discriminant = match discriminant_value {
-                    DiscriminantValue::Literal(int_value) => literal(int_value.wrapping_add(1)),
-                    DiscriminantValue::Expr(expr) => {
-                        parse_quote! {
-                            #repr::wrapping_add(#expr, 1)
-                        }
-                    }
-                }
             }
 
             let error_type_info = maybe_error_type.unwrap_or_else(|| {

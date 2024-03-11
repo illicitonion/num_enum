@@ -271,8 +271,7 @@ impl Parse for EnumInfo {
                 }
 
                 let mut flattened_raw_alternative_values = Vec::new();
-                let has_discriminant = !is_default && !is_catch_all;
-                if has_discriminant {
+                if !is_catch_all {
                     let discriminant_value = parse_discriminant(&discriminant)?;
 
                     // Check for collision.

@@ -139,6 +139,7 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
                 #[deny(unreachable_patterns)]
                 match number {
                     #(
+                        #[allow(unreachable_patterns)]
                         #( #expression_idents )|*
                         => Self::#variant_idents,
                     )*

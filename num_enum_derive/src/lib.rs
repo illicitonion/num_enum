@@ -588,3 +588,47 @@ pub fn derive_default(stream: TokenStream) -> TokenStream {
         }
     })
 }
+
+/// Generates a `const_default() -> Self` method to obtain the default enum value in const contexts.
+///
+/// Whichever variant has the `#[default]` or `#[num_enum(default)]` attribute will be returned.
+/// ----------------------------------------------
+///
+/// ```rust
+/// #[derive(Debug, Eq, PartialEq, num_enum::ConstDefault)]
+/// #[repr(u8)]
+/// enum Number {
+///     Zero,
+///     #[default]
+///     One,
+/// }
+///
+/// const one: Number = Number::const_default();
+/// assert_eq!(one, Number::One);
+/// assert_eq!(Number::One, Number::const_default());
+/// ```
+#[proc_macro_derive(ConstDefault, attributes(num_enum, default))]
+pub fn derive_const_default(stream: TokenStream) -> TokenStream {
+    let enum_info = parse_macro_input!(stream as EnumInfo);
+
+    let default_ident = match enum_info.default() {
+        Some(ident) => ident,
+        None => {
+            let span = Span::call_site();
+            let message =
+                "#[derive(num_enum::ConstDefault)] requires enum to be exhaustive, or a variant marked with `#[default]` or `#[num_enum(default)]`";
+            return syn::Error::new(span, message).to_compile_error().into();
+        }
+    };
+
+    let EnumInfo { ref name, .. } = enum_info;
+
+    TokenStream::from(quote! {
+        impl #name {
+            #[inline]
+            pub const fn const_default() -> Self {
+                Self::#default_ident
+            }
+        }
+    })
+}

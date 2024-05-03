@@ -10,14 +10,14 @@ use syn::{
     LitInt, Meta, Path, Result, UnOp,
 };
 
-pub(crate) struct EnumInfo {
+pub(crate) struct EnumInfo<const IS_CONST: bool = false> {
     pub(crate) name: Ident,
     pub(crate) repr: Ident,
     pub(crate) variants: Vec<VariantInfo>,
     pub(crate) error_type_info: ErrorType,
 }
 
-impl EnumInfo {
+impl<const IS_CONST: bool> EnumInfo<IS_CONST> {
     /// Returns whether the number of variants (ignoring defaults, catch-alls, etc) is the same as
     /// the capacity of the repr.
     pub(crate) fn is_naturally_exhaustive(&self) -> Result<bool> {
@@ -131,7 +131,7 @@ impl EnumInfo {
     }
 }
 
-impl Parse for EnumInfo {
+impl<const IS_CONST: bool> Parse for EnumInfo<IS_CONST> {
     fn parse(input: ParseStream) -> Result<Self> {
         Ok({
             let input: DeriveInput = input.parse()?;
@@ -385,13 +385,24 @@ impl Parse for EnumInfo {
 
             let error_type_info = maybe_error_type.unwrap_or_else(|| {
                 let crate_name = Ident::new(&get_crate_name(), Span::call_site());
-                ErrorType {
-                    name: parse_quote! {
-                        ::#crate_name::TryFromPrimitiveError<Self>
-                    },
-                    constructor: parse_quote! {
-                        ::#crate_name::TryFromPrimitiveError::<Self>::new
-                    },
+                if IS_CONST {
+                    ErrorType {
+                        name: parse_quote! {
+                            ::#crate_name::ConstTryFromPrimitiveError<Self>
+                        },
+                        constructor: parse_quote! {
+                            ::#crate_name::ConstTryFromPrimitiveError::<Self>::new
+                        },
+                    }
+                } else {
+                    ErrorType {
+                        name: parse_quote! {
+                            ::#crate_name::TryFromPrimitiveError<Self>
+                        },
+                        constructor: parse_quote! {
+                            ::#crate_name::TryFromPrimitiveError::<Self>::new
+                        },
+                    }
                 }
             });
 

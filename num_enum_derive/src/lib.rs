@@ -62,6 +62,53 @@ pub fn derive_into_primitive(input: TokenStream) -> TokenStream {
     })
 }
 
+/// Generates a `const_into(self)` method which can be used to extract the primitive value from the
+/// enum in `const` contexts.
+///
+/// ## Allows turning an enum into a primitive.
+///
+/// ```rust
+/// use num_enum::ConstIntoPrimitive;
+///
+/// #[derive(ConstIntoPrimitive)]
+/// #[repr(u8)]
+/// enum Number {
+///     Zero,
+///     One,
+/// }
+///
+/// const zero: u8 = Number::Zero.const_into();
+/// assert_eq!(zero, 0u8);
+/// ```
+#[proc_macro_derive(ConstIntoPrimitive, attributes(num_enum, catch_all))]
+pub fn derive_const_into_primitive(input: TokenStream) -> TokenStream {
+    let enum_info = parse_macro_input!(input as EnumInfo);
+    let catch_all = enum_info.catch_all();
+    let name = &enum_info.name;
+    let repr = &enum_info.repr;
+
+    let body = if let Some(catch_all_ident) = catch_all {
+        quote! {
+            match self {
+                #name::#catch_all_ident(raw) => raw,
+                rest => unsafe { *(&rest as *const #name as *const Self as *const #repr) }
+            }
+        }
+    } else {
+        quote! { unsafe { *(&self as *const #name as *const Self as *const #repr) } }
+    };
+
+    TokenStream::from(quote! {
+        impl #name {
+          #[inline]
+          pub const fn const_into(self) -> #repr
+          {
+                #body
+          }
+        }
+    })
+}
+
 /// Implements `From<Primitive>` for a `#[repr(Primitive)] enum`.
 ///
 /// Turning a primitive into an enum with `from`.

@@ -8,8 +8,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use ::num_enum_derive::{
-    ConstIntoPrimitive, Default, FromPrimitive, IntoPrimitive, TryFromPrimitive,
-    UnsafeFromPrimitive,
+    ConstFromPrimitive, ConstIntoPrimitive, Default, FromPrimitive, IntoPrimitive,
+    TryFromPrimitive, UnsafeFromPrimitive,
 };
 
 use ::core::fmt;

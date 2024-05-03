@@ -209,6 +209,97 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
     })
 }
 
+/// Generates a `Self::const_from()` method which can be used to extract an enum from a primitive
+/// value  in `const` contexts.
+///
+/// Turning a primitive into an enum with `const_from`.
+/// ----------------------------------------------
+///
+/// ```rust
+/// use num_enum::ConstFromPrimitive;
+///
+/// #[derive(Debug, Eq, PartialEq, ConstFromPrimitive)]
+/// #[repr(u8)]
+/// enum Number {
+///     Zero,
+///     #[num_enum(default)]
+///     NonZero,
+/// }
+///
+/// const zero: Number = Number::const_from(0u8);
+/// assert_eq!(zero, Number::Zero);
+///
+/// const one: Number = Number::const_from(1u8);
+/// assert_eq!(one, Number::NonZero);
+///
+/// const two: Number = Number::const_from(2u8);
+/// assert_eq!(two, Number::NonZero);
+/// ```
+#[proc_macro_derive(ConstFromPrimitive, attributes(num_enum, default, catch_all))]
+pub fn derive_const_from_primitive(input: TokenStream) -> TokenStream {
+    let enum_info: EnumInfo = parse_macro_input!(input);
+    let krate = Ident::new(&get_crate_name(), Span::call_site());
+
+    let is_naturally_exhaustive = enum_info.is_naturally_exhaustive();
+    let catch_all_body = match is_naturally_exhaustive {
+        Ok(is_naturally_exhaustive) => {
+            if is_naturally_exhaustive {
+                quote! { unreachable!("exhaustive enum") }
+            } else if let Some(default_ident) = enum_info.default() {
+                quote! { Self::#default_ident }
+            } else if let Some(catch_all_ident) = enum_info.catch_all() {
+                quote! { Self::#catch_all_ident(number) }
+            } else {
+                let span = Span::call_site();
+                let message =
+                    "#[derive(num_enum::ConstFromPrimitive)] requires enum to be exhaustive, or a variant marked with `#[default]`, `#[num_enum(default)]`, or `#[num_enum(catch_all)`";
+                return syn::Error::new(span, message).to_compile_error().into();
+            }
+        }
+        Err(err) => {
+            return err.to_compile_error().into();
+        }
+    };
+
+    let EnumInfo {
+        ref name, ref repr, ..
+    } = enum_info;
+
+    let variant_idents: Vec<Ident> = enum_info.variant_idents();
+    let expression_idents: Vec<Vec<Ident>> = enum_info.expression_idents();
+    let variant_expressions: Vec<Vec<Expr>> = enum_info.variant_expressions();
+
+    debug_assert_eq!(variant_idents.len(), variant_expressions.len());
+
+    TokenStream::from(quote! {
+        impl #name {
+            #[inline]
+            pub const fn const_from(number: #repr) -> Self {
+                // Use intermediate const(s) so that enums defined like
+                // `Two = ONE + 1u8` work properly.
+                #![allow(non_upper_case_globals)]
+                #(
+                    #(
+                        const #expression_idents: #repr = #variant_expressions;
+                    )*
+                )*
+                #[deny(unreachable_patterns)]
+                match number {
+                    #(
+                        #( #expression_idents )|*
+                        => Self::#variant_idents,
+                    )*
+                    #[allow(unreachable_patterns)]
+                    _ => #catch_all_body,
+                }
+            }
+        }
+
+        #[doc(hidden)]
+        impl ::#krate::CannotDeriveBothFromPrimitiveAndTryFromPrimitive for #name {}
+    })
+}
+
 /// Implements `TryFrom<Primitive>` for a `#[repr(Primitive)] enum`.
 ///
 /// Attempting to turn a primitive into an enum with `try_from`.

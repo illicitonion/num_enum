@@ -40,19 +40,15 @@ pub fn derive_into_primitive(input: TokenStream) -> TokenStream {
     let name = &enum_info.name;
     let repr = &enum_info.repr;
 
+    let arg = Ident::new("enum_value", Span::call_site());
     let body = if let Some(catch_all_ident) = catch_all {
-        quote! {
-            match enum_value {
-                #name::#catch_all_ident(raw) => raw,
-                rest => unsafe { *(&rest as *const #name as *const #repr) },
-            }
-        }
+        catch_all_clause(arg, name, repr, catch_all_ident)
     } else {
-        quote! { enum_value as #repr }
+        exhaustive_clause(arg, repr)
     };
 
     TokenStream::from(quote! {
-        impl From<#name> for #repr {
+        impl ::core::convert::From<#name> for #repr {
             #[inline]
             fn from (enum_value: #name) -> Self
             {
@@ -62,19 +58,23 @@ pub fn derive_into_primitive(input: TokenStream) -> TokenStream {
     })
 }
 
+fn catch_all_clause(
+    arg: Ident,
+    this_name: &Ident,
+    that_repr: &Ident,
+    catch_all_ident: &Ident,
+) -> proc_macro2::TokenStream {
+    quote! {
+        match #arg {
+            #this_name::#catch_all_ident(raw) => raw,
+            rest => unsafe { *(&rest as *const #this_name as *const #that_repr) }
+        }
+    }
+}
 
-
-/* enum ConversionPlane { */
-/*     ConstFn, */
-/*     NormalFn, */
-/* } */
-
-/* enum ConversionDirection { */
-/*     From, */
-/*     To, */
-/* } */
-
-/* fn catch_all_clause(); */
+fn exhaustive_clause(arg: Ident, that_repr: &Ident) -> proc_macro2::TokenStream {
+    quote! { #arg as #that_repr }
+}
 
 /// Generates a `const_into(self)` method which can be used to extract the primitive value from the
 /// enum in `const` contexts.
@@ -101,15 +101,11 @@ pub fn derive_const_into_primitive(input: TokenStream) -> TokenStream {
     let name = &enum_info.name;
     let repr = &enum_info.repr;
 
+    let arg = Ident::new("self", Span::call_site());
     let body = if let Some(catch_all_ident) = catch_all {
-        quote! {
-            match self {
-                #name::#catch_all_ident(raw) => raw,
-                rest => unsafe { *(&rest as *const #name as *const #repr) }
-            }
-        }
+        catch_all_clause(arg, name, repr, catch_all_ident)
     } else {
-        quote! { self as #repr }
+        exhaustive_clause(arg, repr)
     };
 
     TokenStream::from(quote! {

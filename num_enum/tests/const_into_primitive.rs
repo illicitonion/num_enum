@@ -20,12 +20,15 @@ enum Enum {
 fn simple() {
     const zero: u8 = Enum::Zero.const_into();
     assert_eq!(zero, 0u8);
+    assert_eq!(zero, Enum::Zero.into());
 
     const one: u8 = Enum::One.const_into();
     assert_eq!(one, 1u8);
+    assert_eq!(one, Enum::One.into());
 
     const two: u8 = Enum::Two.const_into();
     assert_eq!(two, 2u8);
+    assert_eq!(two, Enum::Two.into());
 }
 
 #[test]

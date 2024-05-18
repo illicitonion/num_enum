@@ -79,6 +79,9 @@ fn exhaustive_clause(arg: Ident, that_repr: &Ident) -> proc_macro2::TokenStream 
 /// Generates a `const_into(self)` method which can be used to extract the primitive value from the
 /// enum in `const` contexts.
 ///
+/// Also generates the equivalent of `IntoPrimitive`, so `From` and `Into` may be used in
+/// non-const contexts.
+///
 /// ## Allows turning an enum into a primitive.
 ///
 /// ```rust
@@ -91,11 +94,15 @@ fn exhaustive_clause(arg: Ident, that_repr: &Ident) -> proc_macro2::TokenStream 
 ///     One,
 /// }
 ///
-/// const zero: u8 = Number::Zero.const_into();
-/// assert_eq!(zero, 0u8);
+/// const ZERO: u8 = Number::Zero.const_into();
+/// assert_eq!(ZERO, 0u8);
+/// // Non-const expression:
+/// let one: u8 = Number::One.into();
+/// assert_eq!(one, 1u8);
 /// ```
 #[proc_macro_derive(ConstIntoPrimitive, attributes(num_enum, catch_all))]
 pub fn derive_const_into_primitive(input: TokenStream) -> TokenStream {
+    let input2 = input.clone();
     let enum_info = parse_macro_input!(input as EnumInfo);
     let catch_all = enum_info.catch_all();
     let name = &enum_info.name;
@@ -108,7 +115,11 @@ pub fn derive_const_into_primitive(input: TokenStream) -> TokenStream {
         exhaustive_clause(arg, repr)
     };
 
+    let non_const_impl: proc_macro2::TokenStream = derive_into_primitive(input2).into();
+
     TokenStream::from(quote! {
+        #non_const_impl
+
         impl #name {
           #[inline]
           pub const fn const_into(self) -> #repr

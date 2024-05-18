@@ -44,11 +44,11 @@ pub fn derive_into_primitive(input: TokenStream) -> TokenStream {
         quote! {
             match enum_value {
                 #name::#catch_all_ident(raw) => raw,
-                rest => unsafe { *(&rest as *const #name as *const Self) }
+                rest => unsafe { *(&rest as *const #name as *const #repr) },
             }
         }
     } else {
-        quote! { enum_value as Self }
+        quote! { enum_value as #repr }
     };
 
     TokenStream::from(quote! {
@@ -61,6 +61,20 @@ pub fn derive_into_primitive(input: TokenStream) -> TokenStream {
         }
     })
 }
+
+
+
+/* enum ConversionPlane { */
+/*     ConstFn, */
+/*     NormalFn, */
+/* } */
+
+/* enum ConversionDirection { */
+/*     From, */
+/*     To, */
+/* } */
+
+/* fn catch_all_clause(); */
 
 /// Generates a `const_into(self)` method which can be used to extract the primitive value from the
 /// enum in `const` contexts.
@@ -91,11 +105,11 @@ pub fn derive_const_into_primitive(input: TokenStream) -> TokenStream {
         quote! {
             match self {
                 #name::#catch_all_ident(raw) => raw,
-                rest => unsafe { *(&rest as *const #name as *const Self as *const #repr) }
+                rest => unsafe { *(&rest as *const #name as *const #repr) }
             }
         }
     } else {
-        quote! { unsafe { *(&self as *const #name as *const Self as *const #repr) } }
+        quote! { self as #repr }
     };
 
     TokenStream::from(quote! {

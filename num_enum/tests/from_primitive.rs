@@ -114,6 +114,30 @@ fn from_primitive_number_catch_all() {
     assert_eq!(two, Enum::NonZero(2_u8));
 }
 
+#[test]
+fn from_primitive_number_catch_all_in_middle() {
+    #[derive(Debug, PartialEq, Eq, FromPrimitive)]
+    #[repr(u8)]
+    enum Enum {
+        Zero = 0,
+        #[num_enum(catch_all)]
+        Else(u8) = 2,
+        One = 1,
+    }
+
+    let zero = Enum::from_primitive(0_u8);
+    assert_eq!(zero, Enum::Zero);
+
+    let one = Enum::from_primitive(1_u8);
+    assert_eq!(one, Enum::One);
+
+    let two = Enum::from_primitive(2_u8);
+    assert_eq!(two, Enum::Else(2_u8));
+
+    let three = Enum::from_primitive(3_u8);
+    assert_eq!(three, Enum::Else(3_u8));
+}
+
 #[cfg(feature = "complex-expressions")]
 #[test]
 fn from_primitive_number_with_inclusive_range() {

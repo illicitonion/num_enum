@@ -1,0 +1,24 @@
+name: Check for metadata consistency
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+jobs:
+  metadata-consistency:
+    name: Check for metadata consistency
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v3
+      - name: Fetch toolchain
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+      - name: Check for metadata consistency
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path=metadata_checks/Cargo.toml
+          toolchain: stable

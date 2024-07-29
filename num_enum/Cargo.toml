@@ -26,7 +26,6 @@ default = ["std"]  # disable to use in a `no_std` environment
 features = ["external_doc"]
 
 [badges]
-travis-ci = { repository = "illicitonion/num_enum", branch = "master" }
 maintenance = { status = "passively-maintained" }
 
 [dependencies]

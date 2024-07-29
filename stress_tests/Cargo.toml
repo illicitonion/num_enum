@@ -13,4 +13,4 @@ publish = false
 
 [dev-dependencies]
 num_enum = { path = "../num_enum" }
-trybuild = "1.0.31"
+trybuild = "1.0.98"

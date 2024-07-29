@@ -13,4 +13,4 @@ publish = false
 
 [dependencies]
 num_enum = { path = "../num_enum", default-features = false }
-serde = { version = "1", default_features = false, features = ["derive"] }
+serde = { version = "1", default-features = false, features = ["derive"] }

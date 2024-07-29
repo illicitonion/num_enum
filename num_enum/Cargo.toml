@@ -1,7 +1,7 @@
 [package]
 name = "num_enum"
 version = "0.7.2"  # Keep in sync with num_enum_derive, the the dependency on it below.
-rust-version = "1.56.0"
+rust-version = "1.70.0"
 authors = [
   "Daniel Wagner-Hall <dawagner@gmail.com>",
   "Daniel Henry-Mantilla <daniel.henry.mantilla@gmail.com>",
@@ -36,5 +36,5 @@ num_enum_derive = { version = "=0.7.2", path = "../num_enum_derive", default-fea
 anyhow = "1.0.14"
 paste = "1"
 rustversion = "1.0.4"
-trybuild = "1.0.49"
+trybuild = "1.0.98"
 walkdir = "2"

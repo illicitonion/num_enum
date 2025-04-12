@@ -81,7 +81,11 @@ impl<Enum: TryFromPrimitive> fmt::Display for TryFromPrimitiveError<Enum> {
     }
 }
 
+#[rustversion::since(1.81)]
+impl<Enum: TryFromPrimitive> ::core::error::Error for TryFromPrimitiveError<Enum> {}
+
 #[cfg(feature = "std")]
+#[rustversion::before(1.81)]
 impl<Enum: TryFromPrimitive> ::std::error::Error for TryFromPrimitiveError<Enum> {}
 
 // This trait exists to try to give a more clear error message when someone attempts to derive both FromPrimitive and TryFromPrimitive.

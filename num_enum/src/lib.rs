@@ -8,7 +8,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use ::num_enum_derive::{
-    Default, FromPrimitive, IntoPrimitive, TryFromPrimitive, UnsafeFromPrimitive,
+    ConstDefault, ConstFromPrimitive, ConstIntoPrimitive, ConstTryFromPrimitive, Default,
+    FromPrimitive, IntoPrimitive, TryFromPrimitive, UnsafeFromPrimitive,
 };
 
 use ::core::fmt;
@@ -26,6 +27,13 @@ pub trait TryFromPrimitive: Sized {
     const NAME: &'static str;
 
     fn try_from_primitive(number: Self::Primitive) -> Result<Self, Self::Error>;
+}
+
+pub trait ConstTryFromPrimitive: Sized {
+    type Primitive: Copy + Eq + fmt::Debug;
+    type Error;
+
+    const NAME: &'static str;
 }
 
 pub trait UnsafeFromPrimitive: Sized {
@@ -88,6 +96,38 @@ impl<Enum: TryFromPrimitive> ::core::error::Error for TryFromPrimitiveError<Enum
 #[rustversion::before(1.81)]
 impl<Enum: TryFromPrimitive> ::std::error::Error for TryFromPrimitiveError<Enum> {}
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub struct ConstTryFromPrimitiveError<Enum: ConstTryFromPrimitive> {
+    pub number: Enum::Primitive,
+}
+
+impl<Enum: ConstTryFromPrimitive> ConstTryFromPrimitiveError<Enum> {
+    pub const fn new(number: Enum::Primitive) -> Self {
+        Self { number }
+    }
+}
+
+impl<Enum: ConstTryFromPrimitive> fmt::Debug for ConstTryFromPrimitiveError<Enum> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("ConstTryFromPrimitiveError")
+            .field("number", &self.number)
+            .finish()
+    }
+}
+impl<Enum: ConstTryFromPrimitive> fmt::Display for ConstTryFromPrimitiveError<Enum> {
+    fn fmt(&self, stream: &'_ mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            stream,
+            "No discriminant in enum `{name}` matches the value `{input:?}`",
+            name = Enum::NAME,
+            input = self.number,
+        )
+    }
+}
+
+#[cfg(feature = "std")]
+impl<Enum: ConstTryFromPrimitive> ::std::error::Error for ConstTryFromPrimitiveError<Enum> {}
+
 // This trait exists to try to give a more clear error message when someone attempts to derive both FromPrimitive and TryFromPrimitive.
 // This isn't allowed because both end up creating a `TryFrom<primitive>` implementation.
 // TryFromPrimitive explicitly implements TryFrom<primitive> with Error=TryFromPrimitiveError, which conflicts with:
@@ -97,3 +137,7 @@ impl<Enum: TryFromPrimitive> ::std::error::Error for TryFromPrimitiveError<Enum>
 // It is subject to change in any release regardless of semver.
 #[doc(hidden)]
 pub trait CannotDeriveBothFromPrimitiveAndTryFromPrimitive {}
+
+// Similar, for const primitive coercion methods.
+#[doc(hidden)]
+pub trait CannotDeriveBothConstFromPrimitiveAndConstTryFromPrimitive {}

@@ -121,12 +121,19 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
     let expression_idents: Vec<Vec<Ident>> = enum_info.expression_idents();
     let variant_expressions: Vec<Vec<Expr>> = enum_info.variant_expressions();
 
+    let no_panic_attr = if enum_info.no_panic {
+        quote!(#[no_panic::no_panic])
+    } else {
+        quote!()
+    };
+
     debug_assert_eq!(variant_idents.len(), variant_expressions.len());
 
     TokenStream::from(quote! {
         impl ::#krate::FromPrimitive for #name {
             type Primitive = #repr;
 
+            #no_panic_attr
             fn from_primitive(number: Self::Primitive) -> Self {
                 // Use intermediate const(s) so that enums defined like
                 // `Two = ONE + 1u8` work properly.

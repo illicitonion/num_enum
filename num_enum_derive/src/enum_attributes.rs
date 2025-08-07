@@ -9,24 +9,29 @@ mod kw {
     syn::custom_keyword!(constructor);
     syn::custom_keyword!(error_type);
     syn::custom_keyword!(name);
+    syn::custom_keyword!(from_primitive);
+    syn::custom_keyword!(no_panic);
 }
 
 // Example: error_type(name = Foo, constructor = Foo::new)
 #[cfg_attr(test, derive(Debug))]
 pub(crate) struct Attributes {
     pub(crate) error_type: Option<ErrorTypeAttribute>,
+    pub(crate) from_primitive: Option<FromPrimitiveAttribute>,
 }
 
 // Example: error_type(name = Foo, constructor = Foo::new)
 #[cfg_attr(test, derive(Debug))]
 pub(crate) enum AttributeItem {
     ErrorType(ErrorTypeAttribute),
+    FromPrimitive(FromPrimitiveAttribute),
 }
 
 impl Parse for Attributes {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
         let attribute_items = input.parse_terminated(AttributeItem::parse, syn::Token![,])?;
         let mut maybe_error_type = None;
+        let mut maybe_from_primitive = None;
         for attribute_item in &attribute_items {
             match attribute_item {
                 AttributeItem::ErrorType(error_type) => {
@@ -38,10 +43,20 @@ impl Parse for Attributes {
                     }
                     maybe_error_type = Some(error_type.clone());
                 }
+                AttributeItem::FromPrimitive(from_primitive) => {
+                    if maybe_from_primitive.is_some() {
+                        return Err(Error::new(
+                            from_primitive.span,
+                            "num_enum attribute must have at most one from_primitive",
+                        ));
+                    }
+                    maybe_from_primitive = Some(from_primitive.clone());
+                }
             }
         }
         Ok(Self {
             error_type: maybe_error_type,
+            from_primitive: maybe_from_primitive,
         })
     }
 }
@@ -51,6 +66,8 @@ impl Parse for AttributeItem {
         let lookahead = input.lookahead1();
         if lookahead.peek(kw::error_type) {
             input.parse().map(Self::ErrorType)
+        } else if lookahead.peek(kw::from_primitive) {
+            input.parse().map(Self::FromPrimitive)
         } else {
             Err(lookahead.error())
         }
@@ -165,6 +182,74 @@ impl Parse for ErrorTypeConstructorAttribute {
         input.parse::<syn::Token![=]>()?;
         let path = input.parse()?;
         Ok(Self { path })
+    }
+}
+
+#[derive(Clone)]
+#[cfg_attr(test, derive(Debug))]
+pub(crate) struct FromPrimitiveAttribute {
+    pub(crate) no_panic: Option<FromPrimitiveNoPanicAttribute>,
+
+    span: Span,
+}
+
+impl Parse for FromPrimitiveAttribute {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let keyword: kw::from_primitive = input.parse()?;
+        let span = keyword.span;
+        let content;
+        syn::parenthesized!(content in input);
+        let attribute_values =
+            content.parse_terminated(FromPrimitiveNamedArgument::parse, syn::Token![,])?;
+        let mut no_panic = None;
+        for attribute_value in &attribute_values {
+            match attribute_value {
+                FromPrimitiveNamedArgument::NoPanic(no_panic_attr) => {
+                    if no_panic.is_some() {
+                        die!("num_enum from_primitive attribute must have exactly one `no_panic` value");
+                    }
+                    no_panic = Some(no_panic_attr.clone());
+                }
+            }
+        }
+        
+        Ok(Self { no_panic, span })
+    }
+}
+
+pub(crate) enum FromPrimitiveNamedArgument {
+    NoPanic(FromPrimitiveNoPanicAttribute),
+}
+
+impl Parse for FromPrimitiveNamedArgument {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        let lookahead = input.lookahead1();
+        if lookahead.peek(kw::no_panic) {
+            input.parse().map(Self::NoPanic)
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
+#[derive(Clone)]
+#[cfg_attr(test, derive(Debug))]
+pub(crate) struct FromPrimitiveNoPanicAttribute {
+    pub(crate) no_panic: Option<bool>,
+}
+
+impl Parse for FromPrimitiveNoPanicAttribute {
+    fn parse(input: ParseStream) -> Result<Self> {
+        input.parse::<kw::no_panic>()?;
+
+        let no_panic: Option<bool> = if input.peek(syn::Token![=]) {
+            input.parse::<syn::Token![=]>()?;
+            Some(input.parse::<syn::LitBool>()?.value)
+        } else {
+            None
+        };
+
+        Ok(Self { no_panic })
     }
 }
 

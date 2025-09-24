@@ -1,4 +1,4 @@
-use crate::enum_attributes::ErrorTypeAttribute;
+use crate::enum_attributes::{ErrorTypeAttribute, FromPrimitiveAttribute};
 use crate::utils::die;
 use crate::variant_attributes::{NumEnumVariantAttributeItem, NumEnumVariantAttributes};
 use proc_macro2::Span;
@@ -15,6 +15,7 @@ pub(crate) struct EnumInfo {
     pub(crate) repr: Ident,
     pub(crate) variants: Vec<VariantInfo>,
     pub(crate) error_type_info: ErrorType,
+    pub(crate) no_panic: bool,
 }
 
 impl EnumInfo {
@@ -89,9 +90,10 @@ impl EnumInfo {
 
     fn parse_attrs<Attrs: Iterator<Item = Attribute>>(
         attrs: Attrs,
-    ) -> Result<(Ident, Option<ErrorType>)> {
+    ) -> Result<(Ident, Option<ErrorType>, Option<FromPrimitiveAttribute>)> {
         let mut maybe_repr = None;
         let mut maybe_error_type = None;
+        let mut maybe_from_primitive = None;
         for attr in attrs {
             if let Meta::List(meta_list) = &attr.meta {
                 if let Some(ident) = meta_list.path.get_ident() {
@@ -122,6 +124,13 @@ impl EnumInfo {
                             }
                             maybe_error_type = Some(error_type.into());
                         }
+                        
+                        if let Some(from_primitive) = attributes.from_primitive {
+                            if maybe_from_primitive.is_some() {
+                                die!(attr => "At most one num_enum from_primitive attribute may be specified");
+                            }
+                            maybe_from_primitive = Some(from_primitive.into());
+                        }
                     }
                 }
             }
@@ -129,7 +138,7 @@ impl EnumInfo {
         if maybe_repr.is_none() {
             die!("Missing `#[repr({Integer})]` attribute");
         }
-        Ok((maybe_repr.unwrap(), maybe_error_type))
+        Ok((maybe_repr.unwrap(), maybe_error_type, maybe_from_primitive))
     }
 }
 
@@ -144,7 +153,8 @@ impl Parse for EnumInfo {
                 Data::Struct(data) => die!(data.struct_token => "Expected enum but found struct"),
             };
 
-            let (repr, maybe_error_type) = Self::parse_attrs(input.attrs.into_iter())?;
+            let (repr, maybe_error_type, maybe_from_primitive) =
+                Self::parse_attrs(input.attrs.into_iter())?;
 
             let mut variants: Vec<VariantInfo> = vec![];
             let mut has_default_variant: bool = false;
@@ -396,12 +406,21 @@ impl Parse for EnumInfo {
                     },
                 }
             });
+            
+            let no_panic = match maybe_from_primitive {
+                None => false,
+                Some(from_primitive) => match from_primitive.no_panic {
+                    None => false,
+                    Some(no_panic_attribute) => no_panic_attribute.no_panic.unwrap_or_else(|| true),
+                },
+            };
 
             EnumInfo {
                 name,
                 repr,
                 variants,
                 error_type_info,
+                no_panic,
             }
         })
     }

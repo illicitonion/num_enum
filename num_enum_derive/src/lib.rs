@@ -10,7 +10,7 @@ use syn::{parse_macro_input, Expr, Ident};
 
 mod enum_attributes;
 mod parsing;
-use parsing::{get_crate_name, EnumInfo};
+use parsing::{get_crate_path, EnumInfo};
 mod utils;
 mod variant_attributes;
 
@@ -90,7 +90,7 @@ pub fn derive_into_primitive(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(FromPrimitive, attributes(num_enum, default, catch_all))]
 pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
     let enum_info: EnumInfo = parse_macro_input!(input);
-    let krate = Ident::new(&get_crate_name(), Span::call_site());
+    let krate = get_crate_path(enum_info.crate_path.clone());
 
     let is_naturally_exhaustive = enum_info.is_naturally_exhaustive();
     let catch_all_body = match is_naturally_exhaustive {
@@ -124,7 +124,7 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
     debug_assert_eq!(variant_idents.len(), variant_expressions.len());
 
     TokenStream::from(quote! {
-        impl ::#krate::FromPrimitive for #name {
+        impl #krate::FromPrimitive for #name {
             type Primitive = #repr;
 
             fn from_primitive(number: Self::Primitive) -> Self {
@@ -153,12 +153,12 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
             fn from (
                 number: #repr,
             ) -> Self {
-                ::#krate::FromPrimitive::from_primitive(number)
+                #krate::FromPrimitive::from_primitive(number)
             }
         }
 
         #[doc(hidden)]
-        impl ::#krate::CannotDeriveBothFromPrimitiveAndTryFromPrimitive for #name {}
+        impl #krate::CannotDeriveBothFromPrimitiveAndTryFromPrimitive for #name {}
     })
 }
 
@@ -190,8 +190,7 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(TryFromPrimitive, attributes(num_enum))]
 pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
     let enum_info: EnumInfo = parse_macro_input!(input);
-    let krate = Ident::new(&get_crate_name(), Span::call_site());
-
+    let krate = get_crate_path(enum_info.crate_path.clone());
     let EnumInfo {
         ref name,
         ref repr,
@@ -209,7 +208,7 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
     let error_constructor = &error_type_info.constructor;
 
     TokenStream::from(quote! {
-        impl ::#krate::TryFromPrimitive for #name {
+        impl #krate::TryFromPrimitive for #name {
             type Primitive = #repr;
             type Error = #error_type;
 
@@ -251,12 +250,12 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
                 number: #repr,
             ) -> ::core::result::Result<Self, #error_type>
             {
-                ::#krate::TryFromPrimitive::try_from_primitive(number)
+                #krate::TryFromPrimitive::try_from_primitive(number)
             }
         }
 
         #[doc(hidden)]
-        impl ::#krate::CannotDeriveBothFromPrimitiveAndTryFromPrimitive for #name {}
+        impl #krate::CannotDeriveBothFromPrimitiveAndTryFromPrimitive for #name {}
     })
 }
 
@@ -302,14 +301,14 @@ pub fn derive_try_from_primitive(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(UnsafeFromPrimitive, attributes(num_enum))]
 pub fn derive_unsafe_from_primitive(stream: TokenStream) -> TokenStream {
     let enum_info = parse_macro_input!(stream as EnumInfo);
-    let krate = Ident::new(&get_crate_name(), Span::call_site());
+    let krate = get_crate_path(enum_info.crate_path);
 
     let EnumInfo {
         ref name, ref repr, ..
     } = enum_info;
 
     TokenStream::from(quote! {
-        impl ::#krate::UnsafeFromPrimitive for #name {
+        impl #krate::UnsafeFromPrimitive for #name {
             type Primitive = #repr;
 
             unsafe fn unchecked_transmute_from(number: Self::Primitive) -> Self {

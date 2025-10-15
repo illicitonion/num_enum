@@ -13,20 +13,50 @@ mod kw {
 
 // Example: error_type(name = Foo, constructor = Foo::new)
 #[cfg_attr(test, derive(Debug))]
+#[derive(Default)]
 pub(crate) struct Attributes {
     pub(crate) error_type: Option<ErrorTypeAttribute>,
+    pub(crate) crate_path: Option<CrateAttribute>,
 }
 
 // Example: error_type(name = Foo, constructor = Foo::new)
 #[cfg_attr(test, derive(Debug))]
 pub(crate) enum AttributeItem {
     ErrorType(ErrorTypeAttribute),
+    CratePath(CrateAttribute),
+}
+
+impl Attributes {
+    pub(crate) fn exclusive_union(&mut self, other: Self) -> Result<()> {
+        if self.crate_path.is_some() {
+            if let Some(other) = &other.crate_path {
+                return Err(Error::new(
+                    other.span,
+                    "num_enum attribute must have at most one crate",
+                ));
+            }
+        } else {
+            self.crate_path = other.crate_path;
+        }
+        if self.error_type.is_some() {
+            if let Some(other) = &other.error_type {
+                return Err(Error::new(
+                    other.span,
+                    "num_enum attribute must have at most one error_type",
+                ));
+            }
+        } else {
+            self.error_type = other.error_type;
+        }
+        Ok(())
+    }
 }
 
 impl Parse for Attributes {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
         let attribute_items = input.parse_terminated(AttributeItem::parse, syn::Token![,])?;
         let mut maybe_error_type = None;
+        let mut maybe_krate_path = None;
         for attribute_item in &attribute_items {
             match attribute_item {
                 AttributeItem::ErrorType(error_type) => {
@@ -38,10 +68,20 @@ impl Parse for Attributes {
                     }
                     maybe_error_type = Some(error_type.clone());
                 }
+                AttributeItem::CratePath(krate_path) => {
+                    if maybe_krate_path.is_some() {
+                        return Err(Error::new(
+                            krate_path.span,
+                            "num_enum attribute must have at most one crate",
+                        ));
+                    }
+                    maybe_krate_path = Some(krate_path.clone());
+                }
             }
         }
         Ok(Self {
             error_type: maybe_error_type,
+            crate_path: maybe_krate_path,
         })
     }
 }
@@ -51,6 +91,8 @@ impl Parse for AttributeItem {
         let lookahead = input.lookahead1();
         if lookahead.peek(kw::error_type) {
             input.parse().map(Self::ErrorType)
+        } else if lookahead.peek(syn::token::Crate) {
+            input.parse().map(Self::CratePath)
         } else {
             Err(lookahead.error())
         }
@@ -168,6 +210,24 @@ impl Parse for ErrorTypeConstructorAttribute {
     }
 }
 
+#[derive(Clone)]
+#[cfg_attr(test, derive(Debug))]
+pub(crate) struct CrateAttribute {
+    pub(crate) path: syn::Path,
+
+    span: Span,
+}
+
+impl Parse for CrateAttribute {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let span = input.span();
+        let _: syn::token::Crate = input.parse()?;
+        let _: syn::token::Eq = input.parse()?;
+        let path = syn::Path::parse_mod_style(input)?;
+        Ok(Self { path, span })
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::enum_attributes::Attributes;
@@ -178,11 +238,15 @@ mod test {
     fn parse_num_enum_attr() {
         let expected_name: Path = parse_quote! { Foo };
         let expected_constructor: Path = parse_quote! { ::foo::Foo::<u8>::new };
+        let expected_krate: Path = parse_quote! { ::num_enum };
 
-        let attributes: Attributes =
-            syn::parse_str("error_type(name = Foo, constructor = ::foo::Foo::<u8>::new)").unwrap();
+        let attributes: Attributes = syn::parse_str(
+            "error_type(name = Foo, constructor = ::foo::Foo::<u8>::new), crate = ::num_enum",
+        )
+        .unwrap();
         assert!(attributes.error_type.is_some());
         let error_type = attributes.error_type.unwrap();
+        let krate_path = attributes.crate_path.unwrap();
         assert_eq!(
             error_type.name.path.to_token_stream().to_string(),
             expected_name.to_token_stream().to_string()
@@ -190,6 +254,10 @@ mod test {
         assert_eq!(
             error_type.constructor.path.to_token_stream().to_string(),
             expected_constructor.to_token_stream().to_string()
+        );
+        assert_eq!(
+            krate_path.path.to_token_stream().to_string(),
+            expected_krate.to_token_stream().to_string()
         );
     }
 

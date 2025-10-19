@@ -82,6 +82,11 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features
           toolchain: ${{ matrix.toolchain }}
+      - name: Clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          toolchain: ${{ matrix.toolchain }}
       - name: Install cargo-audit binary crate
         uses: actions-rs/install@v0.1
         with:

@@ -32,7 +32,7 @@ impl EnumInfo {
                     return Ok(false);
                 } else if let Ok(bits) = suffix.parse::<u32>() {
                     let variants = 1usize.checked_shl(bits);
-                    return Ok(variants.map_or(false, |v| {
+                    return Ok(variants.is_some_and(|v| {
                         v == self
                             .variants
                             .iter()

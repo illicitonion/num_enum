@@ -263,7 +263,7 @@ impl Parse for EnumInfo {
                 if !is_catch_all {
                     match &variant.fields {
                         Fields::Named(_) | Fields::Unnamed(_) => {
-                            die!(variant => format!("`{}` only supports unit variants (with no associated data), but `{}::{}` was not a unit variant.", get_crate_path(crate_path).to_token_stream(), name, ident));
+                            die!(variant => format!("`{}` only supports unit variants (with no associated data), but `{}::{}` was not a unit variant.", crate_path_as_string(&get_crate_path(crate_path))?, name, ident));
                         }
                         Fields::Unit => {}
                     }
@@ -553,4 +553,18 @@ pub(crate) fn get_crate_path(path: Option<syn::Path>) -> syn::Path {
 #[cfg(not(feature = "proc-macro-crate"))]
 pub(crate) fn get_crate_path(path: Option<syn::Path>) -> syn::Path {
     path.unwrap_or_else(|| parse_quote!(::num_enum))
+}
+
+fn crate_path_as_string(path: &syn::Path) -> Result<String> {
+    let mut string = String::new();
+    for (index, part) in path.segments.iter().enumerate() {
+        if index != 0 || path.leading_colon.is_some() {
+            string.push_str("::");
+        }
+        if !part.arguments.is_none() {
+            die!(part => format!("Crate paths should never contain arguments"));
+        }
+        string.push_str(&format!("{}", part.ident));
+    }
+    Ok(string)
 }

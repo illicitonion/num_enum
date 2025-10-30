@@ -244,6 +244,68 @@ fn main() {
 
 As this is naturally exhaustive, this is only supported for `FromPrimitive`, not also `TryFromPrimitive`.
 
+## Interaction with std Default
+
+You can define a different "fallback" default for FromPrimitive than what is used by the std lib's Default derive.
+
+```rust
+use num_enum::FromPrimitive;
+use std::convert::TryFrom;
+
+#[derive(Debug, Default, Eq, PartialEq, FromPrimitive)]
+#[repr(u8)]
+enum Number {
+    #[default]
+    Zero = 0,
+    #[num_enum(default)]
+    NonZero,
+}
+
+fn main() {
+    let def = Number::default();
+    assert_eq!(def, Number::Zero);
+
+    let zero = Number::from(0u8);
+    assert_eq!(zero, Number::Zero);
+
+    let one = Number::from(1u8);
+    assert_eq!(one, Number::NonZero);
+
+    let two = Number::from(2u8);
+    assert_eq!(two, Number::NonZero);
+}
+```
+
+Or with catch_all
+
+```rust
+use num_enum::FromPrimitive;
+use std::convert::TryFrom;
+
+#[derive(Debug, Default, Eq, PartialEq, FromPrimitive)]
+#[repr(u8)]
+enum Number {
+    #[default]
+    Zero = 0,
+    #[num_enum(catch_all)]
+    NonZero(u8),
+}
+
+fn main() {
+    let def = Number::default();
+    assert_eq!(def, Number::Zero);
+
+    let zero = Number::from(0u8);
+    assert_eq!(zero, Number::Zero);
+
+    let one = Number::from(1u8);
+    assert_eq!(one, Number::NonZero(1_u8));
+
+    let two = Number::from(2u8);
+    assert_eq!(two, Number::NonZero(2_u8));
+}
+```
+
 ## Unsafely turning a primitive into an enum with unchecked_transmute_from
 
 If you're really certain a conversion will succeed (and have not made use of `#[num_enum(default)]` or `#[num_enum(alternatives = [..])]`

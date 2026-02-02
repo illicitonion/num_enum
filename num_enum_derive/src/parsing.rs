@@ -45,6 +45,13 @@ impl EnumInfo {
         die!(self.repr.clone() => "Failed to parse repr into bit size");
     }
 
+    pub(crate) fn std_default(&self) -> Option<&Ident> {
+        self.variants
+            .iter()
+            .find(|info| info.is_std_default)
+            .map(|info| &info.ident)
+    }
+
     pub(crate) fn default(&self) -> Option<&Ident> {
         self.variants
             .iter()
@@ -144,8 +151,6 @@ impl Parse for EnumInfo {
             let crate_path = attributes.crate_path.clone().map(|k| k.path);
 
             let mut variants: Vec<VariantInfo> = vec![];
-            let mut has_default_variant: bool = false;
-            let mut has_catch_all_variant: bool = false;
 
             // Vec to keep track of the used discriminants and alt values.
             let mut discriminant_int_val_set = BTreeSet::new();
@@ -166,22 +171,15 @@ impl Parse for EnumInfo {
                 // `#[num_enum(default)]` is required by `#[derive(FromPrimitive)]`
                 // and forbidden by `#[derive(UnsafeFromPrimitive)]`, so we need to
                 // keep track of whether we encountered such an attribute:
+                let mut is_std_default: bool = false;
                 let mut is_default: bool = false;
                 let mut is_catch_all: bool = false;
+                let mut err_token: Option<Box<dyn ToTokens>> = None;
 
                 for attribute in &variant.attrs {
                     if attribute.path().is_ident("default") {
-                        if has_default_variant {
-                            die!(attribute =>
-                                "Multiple variants marked `#[default]` or `#[num_enum(default)]` found"
-                            );
-                        } else if has_catch_all_variant {
-                            die!(attribute =>
-                                "Attribute `default` is mutually exclusive with `catch_all`"
-                            );
-                        }
-                        is_default = true;
-                        has_default_variant = true;
+                        err_token = Some(Box::new(attribute.clone()));
+                        is_std_default = true;
                     }
 
                     if attribute.path().is_ident("num_enum") {
@@ -190,29 +188,11 @@ impl Parse for EnumInfo {
                                 for variant_attribute in variant_attributes.items {
                                     match variant_attribute {
                                         NumEnumVariantAttributeItem::Default(default) => {
-                                            if has_default_variant {
-                                                die!(default.keyword =>
-                                                    "Multiple variants marked `#[default]` or `#[num_enum(default)]` found"
-                                                );
-                                            } else if has_catch_all_variant {
-                                                die!(default.keyword =>
-                                                    "Attribute `default` is mutually exclusive with `catch_all`"
-                                                );
-                                            }
+                                            err_token = Some(Box::new(default.keyword));
                                             is_default = true;
-                                            has_default_variant = true;
                                         }
                                         NumEnumVariantAttributeItem::CatchAll(catch_all) => {
-                                            if has_catch_all_variant {
-                                                die!(catch_all.keyword =>
-                                                    "Multiple variants marked with `#[num_enum(catch_all)]`"
-                                                );
-                                            } else if has_default_variant {
-                                                die!(catch_all.keyword =>
-                                                    "Attribute `catch_all` is mutually exclusive with `default`"
-                                                );
-                                            }
-
+                                            err_token = Some(Box::new(catch_all.keyword));
                                             match variant
                                                 .fields
                                                 .iter()
@@ -224,7 +204,6 @@ impl Parse for EnumInfo {
                                                     ..
                                                 }] if path.is_ident(&repr) => {
                                                     is_catch_all = true;
-                                                    has_catch_all_variant = true;
                                                 }
                                                 _ => {
                                                     die!(catch_all.keyword =>
@@ -358,15 +337,17 @@ impl Parse for EnumInfo {
                     discriminant_int_val_set.extend(sorted_alternate_int_values);
                 }
 
-                // Add the current discriminant to the the set to keep track.
+                // Add the current discriminant to the set to keep track.
                 if let DiscriminantValue::Literal(canonical_value_int) = discriminant_value {
                     discriminant_int_val_set.insert(canonical_value_int);
                 }
 
                 variants.push(VariantInfo {
                     ident,
+                    is_std_default,
                     is_default,
                     is_catch_all,
+                    err_token,
                     canonical_value: discriminant,
                     alternative_values: flattened_raw_alternative_values,
                 });
@@ -379,6 +360,46 @@ impl Parse for EnumInfo {
                             #repr::wrapping_add(#expr, 1)
                         }
                     }
+                }
+            }
+
+            // Validate variants
+            let with_std_default: Vec<_> = variants.iter().filter(|v| v.is_std_default).collect();
+            let with_default: Vec<_> = variants.iter().filter(|v| v.is_default).collect();
+            let with_catch_all: Vec<_> = variants.iter().filter(|v| v.is_catch_all).collect();
+            if with_std_default.len() > 1 {
+                if let Some(token) = with_std_default[0].err_token.as_ref() {
+                    die!(token =>
+                        "Multiple variants marked `#[default]` found"
+                    );
+                } else {
+                    die!(name =>
+                        "Multiple variants marked `#[default]` found"
+                    );
+                }
+            }
+            if with_default.len() > 1 {
+                let msg = "Multiple variants marked #[num_enum(default)]` found";
+                if let Some(token) = with_default[0].err_token.as_ref() {
+                    die!(token => msg);
+                } else {
+                    die!(msg);
+                }
+            }
+            if with_catch_all.len() > 1 {
+                let msg = "Multiple variants marked #[num_enum(catch_all)]` found";
+                if let Some(token) = with_catch_all[0].err_token.as_ref() {
+                    die!(token => msg);
+                } else {
+                    die!(msg);
+                }
+            }
+            if with_default.len() > 0 && with_catch_all.len() > 0 {
+                let msg = "Attribute #[num_enum(catch_all)] is mutually exclusive with #[num_enum(default)]`";
+                if let Some(token) = with_catch_all[0].err_token.as_ref() {
+                    die!(token => msg);
+                } else {
+                    die!(msg);
                 }
             }
 
@@ -501,8 +522,10 @@ fn parse_alternative_values(val_expr: &Expr) -> Result<Vec<DiscriminantValue>> {
 
 pub(crate) struct VariantInfo {
     ident: Ident,
+    is_std_default: bool,
     is_default: bool,
     is_catch_all: bool,
+    err_token: Option<Box<dyn ToTokens>>,
     canonical_value: Expr,
     alternative_values: Vec<Expr>,
 }

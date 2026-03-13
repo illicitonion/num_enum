@@ -393,7 +393,7 @@ fn alternative_values() {
     #[repr(i8)]
     enum Enum {
         Zero = 0,
-        #[num_enum(alternatives = [-1, 2, 3])]
+        #[num_enum(alternatives = [-1, 2, b'\x03'])]
         OneTwoThreeOrMinusOne = 1,
     }
 

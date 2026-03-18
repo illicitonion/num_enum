@@ -5,7 +5,7 @@ This crate is no_std compatible.
 
 [![crates.io](https://img.shields.io/crates/v/num_enum.svg)](https://crates.io/crates/num_enum)
 [![Documentation](https://docs.rs/num_enum/badge.svg)](https://docs.rs/num_enum)
-[![Build Status](https://travis-ci.org/illicitonion/num_enum.svg?branch=master)](https://travis-ci.org/illicitonion/num_enum)
+[![Build Status](https://github.com/illicitonion/num_enum/actions/workflows/presubmit.yml/badge.svg)](https://github.com/illicitonion/num_enum/actions)
 
 ## Turning an enum into a primitive
 

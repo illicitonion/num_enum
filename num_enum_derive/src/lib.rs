@@ -97,10 +97,13 @@ pub fn derive_from_primitive(input: TokenStream) -> TokenStream {
         Ok(is_naturally_exhaustive) => {
             if is_naturally_exhaustive {
                 quote! { unreachable!("exhaustive enum") }
-            } else if let Some(default_ident) = enum_info.default() {
-                quote! { Self::#default_ident }
             } else if let Some(catch_all_ident) = enum_info.catch_all() {
                 quote! { Self::#catch_all_ident(number) }
+            } else if let Some(default_ident) = enum_info.default() {
+                quote! { Self::#default_ident }
+            } else if let Some(default_ident) = enum_info.std_default() {
+                // std default is the last priority to allow for a different num_enum FromPrimitive default than the std Default::default()
+                quote! { Self::#default_ident }
             } else {
                 let span = Span::call_site();
                 let message =
@@ -339,9 +342,17 @@ pub fn derive_unsafe_from_primitive(stream: TokenStream) -> TokenStream {
 pub fn derive_default(stream: TokenStream) -> TokenStream {
     let enum_info = parse_macro_input!(stream as EnumInfo);
 
-    let default_ident = match enum_info.default() {
-        Some(ident) => ident,
-        None => {
+    let default_ident = match ( enum_info.default(), enum_info.std_default() ) {
+        // num_enum(default) takes precedence over std default
+        (Some(ident), None) => ident,
+        (None, Some(ident)) => ident,
+        (Some(_), Some(_)) => {
+            let span = Span::call_site();
+            let message =
+                "#[derive(num_enum::Default)] cannot be used with both #[default] and #[num_enum(default)]";
+            return syn::Error::new(span, message).to_compile_error().into();
+        },
+        (None, None) => {
             let span = Span::call_site();
             let message =
                 "#[derive(num_enum::Default)] requires enum to be exhaustive, or a variant marked with `#[default]` or `#[num_enum(default)]`";
